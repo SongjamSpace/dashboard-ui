@@ -1,0 +1,376 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { useState } from "react";
+import { Calendar, Clock, Mic, Plus, Settings } from "lucide-react";
+import ScheduleCalendar from "@/components/schedule-calendar";
+import ScheduleForm from "@/components/schedule-form";
+import RecurringPatternSelector from "@/components/recurring-pattern-selector";
+import SuccessNotification from "@/components/success-notification";
+
+interface ScheduledShow {
+  id: string;
+  showName: string;
+  description: string;
+  coverImage?: string;
+  duration: number; // in minutes
+  day: number; // 0 = Sunday, 1 = Monday, etc.
+  time: string; // HH:MM format
+  pattern: "one-time" | "specific-days" | "weekdays" | "daily";
+  days?: number[]; // for specific-days pattern
+  startDate?: string; // for one-time shows
+  endDate?: string; // for recurring shows
+}
+
+// Mock data for existing scheduled shows
+const mockScheduledShows: ScheduledShow[] = [
+  {
+    id: "1",
+    showName: "Crypto Daily",
+    description: "Daily crypto market analysis and news",
+    duration: 60,
+    day: 1, // Monday
+    time: "17:30",
+    pattern: "weekdays",
+    endDate: "2024-12-31",
+  },
+  {
+    id: "2",
+    showName: "DeFi Deep Dive",
+    description: "Weekly deep dive into DeFi protocols",
+    duration: 90,
+    day: 3, // Wednesday
+    time: "18:00",
+    pattern: "one-time",
+    startDate: "2024-01-15",
+  },
+  {
+    id: "3",
+    showName: "NFT Showcase",
+    description: "Showcasing the latest NFT collections",
+    duration: 45,
+    day: 5, // Friday
+    time: "19:00",
+    pattern: "specific-days",
+    days: [5, 6], // Friday and Saturday
+    endDate: "2024-06-30",
+  },
+  {
+    id: "4",
+    showName: "Morning Brief",
+    description: "Daily morning crypto brief",
+    duration: 30,
+    day: 0, // Sunday
+    time: "11:00",
+    pattern: "daily",
+    endDate: "2024-12-31",
+  },
+];
+
+export default function KOLsPage() {
+  const [selectedSlots, setSelectedSlots] = useState<
+    { day: number; time: string }[]
+  >([]);
+  const [showForm, setShowForm] = useState(false);
+  const [userShows, setUserShows] = useState<ScheduledShow[]>([]);
+  const [selectedPattern, setSelectedPattern] = useState<
+    "one-time" | "specific-days" | "weekdays" | "daily"
+  >("one-time");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const handleSlotSelect = (day: number, time: string) => {
+    const slotKey = `${day}-${time}`;
+    const existingSlot = selectedSlots.find(
+      (slot) => `${slot.day}-${slot.time}` === slotKey
+    );
+
+    if (existingSlot) {
+      setSelectedSlots((prev) =>
+        prev.filter((slot) => `${slot.day}-${slot.time}` !== slotKey)
+      );
+    } else {
+      setSelectedSlots((prev) => [...prev, { day, time }]);
+    }
+  };
+
+  const handleShowSubmit = (showData: Omit<ScheduledShow, "id">) => {
+    const newShow: ScheduledShow = {
+      ...showData,
+      id: Date.now().toString(),
+    };
+    setUserShows((prev) => [...prev, newShow]);
+    setShowForm(false);
+    setSelectedSlots([]);
+    setSuccessMessage(
+      `"${showData.showName}" has been scheduled successfully!`
+    );
+    setShowSuccess(true);
+
+    // Auto-hide success notification after 3 seconds
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
+  };
+
+  const allShows = [...mockScheduledShows, ...userShows];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)]">
+      {/* Header */}
+      <div className="relative z-10 text-center py-8 px-4">
+        <motion.h1
+          className="text-4xl md:text-6xl font-black mb-4 drop-shadow-lg text-white"
+          style={{ fontFamily: "Orbitron, sans-serif" }}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          KOL Show Scheduler
+        </motion.h1>
+        <motion.p
+          className="text-lg md:text-xl max-w-4xl mx-auto drop-shadow-lg text-white/90 px-4"
+          style={{ fontFamily: "Inter, sans-serif" }}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          Schedule your Twitter Space shows with ease
+        </motion.p>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 px-4 pb-8">
+        <div className="max-w-7xl mx-auto">
+          {/* My Shows Section - Top Row */}
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <div className="flex items-center mb-4">
+              <Calendar className="w-6 h-6 text-white/70 mr-3" />
+              <h3
+                className="text-xl font-semibold text-white"
+                style={{ fontFamily: "Orbitron, sans-serif" }}
+              >
+                My Scheduled Shows
+              </h3>
+            </div>
+            {userShows.length === 0 ? (
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/20 p-8 text-center">
+                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Mic className="w-8 h-8 text-white/50" />
+                </div>
+                <h4
+                  className="text-lg font-semibold text-white mb-2"
+                  style={{ fontFamily: "Orbitron, sans-serif" }}
+                >
+                  No shows scheduled yet
+                </h4>
+                <p
+                  className="text-white/60 text-sm"
+                  style={{ fontFamily: "Inter, sans-serif" }}
+                >
+                  Create your first show by selecting a pattern and time slots
+                  below
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {userShows.map((show) => (
+                  <motion.div
+                    key={show.id}
+                    className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden hover:bg-white/15 transition-all duration-200"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {/* Cover Image Placeholder */}
+                    <div className="h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                      {show.coverImage ? (
+                        <img
+                          src={show.coverImage}
+                          alt={show.showName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Mic className="w-8 h-8 text-white/50" />
+                      )}
+                    </div>
+
+                    {/* Show Details */}
+                    <div className="p-4">
+                      <h4
+                        className="text-white font-semibold text-sm mb-1 truncate"
+                        style={{ fontFamily: "Inter, sans-serif" }}
+                      >
+                        {show.showName}
+                      </h4>
+                      <p
+                        className="text-white/60 text-xs mb-2 line-clamp-2"
+                        style={{ fontFamily: "Inter, sans-serif" }}
+                      >
+                        {show.description}
+                      </p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span
+                          className="text-white/70"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          {show.duration}min
+                        </span>
+                        <span
+                          className="text-purple-400 font-medium capitalize"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          {show.pattern.replace("-", " ")}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Calendar and Form Grid */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            {/* Calendar - Takes 2 columns */}
+            <div className="xl:col-span-2">
+              <motion.div
+                className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+              >
+                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+                  <h3
+                    className="text-lg font-semibold text-white"
+                    style={{ fontFamily: "Orbitron, sans-serif" }}
+                  >
+                    Weekly Schedule
+                  </h3>
+                  <div className="flex items-center space-x-2 text-white/70">
+                    <Clock className="w-4 h-4" />
+                    <span
+                      className="text-sm"
+                      style={{ fontFamily: "Inter, sans-serif" }}
+                    >
+                      Local Time (
+                      {Intl.DateTimeFormat().resolvedOptions().timeZone})
+                    </span>
+                  </div>
+                </div>
+                <ScheduleCalendar
+                  scheduledShows={allShows}
+                  selectedSlots={selectedSlots}
+                  selectedPattern={selectedPattern}
+                  onSlotSelect={handleSlotSelect}
+                />
+              </motion.div>
+            </div>
+
+            {/* Sidebar - Takes 1 column */}
+            <div className="xl:col-span-1">
+              <div className="space-y-4">
+                {/* Schedule New Show */}
+                <motion.div
+                  className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm rounded-xl border border-purple-400/30 p-6"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                >
+                  <div className="flex items-center mb-3">
+                    <Mic className="w-6 h-6 text-purple-400 mr-2" />
+                    <h4
+                      className="text-lg font-bold text-white"
+                      style={{ fontFamily: "Orbitron, sans-serif" }}
+                    >
+                      Schedule Show
+                    </h4>
+                  </div>
+                  <p
+                    className="text-white/80 text-sm mb-4"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    {selectedSlots.length > 0
+                      ? `${selectedSlots.length} time slot${
+                          selectedSlots.length > 1 ? "s" : ""
+                        } selected`
+                      : "Select time slots to schedule your show"}
+                  </p>
+                  <motion.button
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-2 px-4 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                    whileHover={{ scale: selectedSlots.length > 0 ? 1.02 : 1 }}
+                    whileTap={{ scale: selectedSlots.length > 0 ? 0.98 : 1 }}
+                    onClick={() => setShowForm(true)}
+                    disabled={selectedSlots.length === 0}
+                  >
+                    {selectedSlots.length > 0
+                      ? "Configure Show"
+                      : "Select Time Slots"}
+                  </motion.button>
+                </motion.div>
+
+                {/* Pattern Selector */}
+                <motion.div
+                  className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/20 p-6"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                >
+                  <h4
+                    className="text-lg font-semibold text-white mb-2"
+                    style={{ fontFamily: "Orbitron, sans-serif" }}
+                  >
+                    Schedule Pattern
+                  </h4>
+                  <p
+                    className="text-white/70 text-sm mb-4"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    Select a pattern, then choose time slots in the calendar.
+                    The pattern will show a preview of when your show will
+                    repeat.
+                  </p>
+                  <RecurringPatternSelector
+                    selectedPattern={selectedPattern}
+                    onPatternChange={(
+                      pattern:
+                        | "one-time"
+                        | "specific-days"
+                        | "weekdays"
+                        | "daily"
+                    ) => {
+                      setSelectedPattern(pattern);
+                      setSelectedSlots([]); // Clear selections when pattern changes
+                    }}
+                  />
+                </motion.div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Show Form Modal */}
+      {showForm && (
+        <ScheduleForm
+          selectedSlots={selectedSlots}
+          selectedPattern={selectedPattern}
+          onClose={() => setShowForm(false)}
+          onSubmit={handleShowSubmit}
+        />
+      )}
+
+      {/* Success Notification */}
+      <SuccessNotification
+        show={showSuccess}
+        message={successMessage}
+        onClose={() => setShowSuccess(false)}
+      />
+    </div>
+  );
+}
