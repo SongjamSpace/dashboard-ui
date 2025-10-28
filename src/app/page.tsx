@@ -5,6 +5,15 @@ import { useState, useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { Eye, Heart, MessageCircle, Quote, RotateCcw } from "lucide-react";
+import { useAuth } from "@/components/providers";
+import Navbar from "@/components/navbar";
+import { ProjectCard } from "@/components/project-card";
+import LoginScreen from "@/components/login-screen";
+import {
+  LeaderboardProject,
+  getLbProjectByTwitterUsername,
+} from "@/services/db/leaderboardProjects.db";
+import { useRouter } from "next/navigation";
 
 interface AnalyticsData {
   views: number;
@@ -49,8 +58,9 @@ const generateMockAnalytics = (timeframe: Timeframe): AnalyticsData => {
 };
 
 export default function Dashboard() {
+  const { ready, authenticated, login } = useAuth();
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("24H");
-
+  const router = useRouter();
   // Mock analytics data fetch
   const { data: analyticsData, isLoading: analyticsLoading } =
     useQuery<AnalyticsData>({
@@ -88,6 +98,24 @@ export default function Dashboard() {
     refetchOnWindowFocus: false,
   });
 
+  // Fetch project data from Firebase
+  const {
+    data: projectData,
+    isLoading: projectLoading,
+    error: projectError,
+  } = useQuery<LeaderboardProject[], Error>({
+    queryKey: ["project", "songjamspace"],
+    queryFn: async (): Promise<LeaderboardProject[]> => {
+      return await getLbProjectByTwitterUsername("songjamspace");
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    enabled: authenticated, // Only fetch when user is authenticated
+  });
+
+  // Get the first project (assuming one project per Twitter username)
+  const project = projectData?.[0];
+
   const handleTimeframeChange = (timeframe: Timeframe) => {
     setSelectedTimeframe(timeframe);
   };
@@ -106,8 +134,27 @@ export default function Dashboard() {
     return `${diffDays}d ago`;
   };
 
+  // Show loading state while Privy is initializing
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)] flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show login screen when user is not authenticated
+  if (!authenticated) {
+    return <LoginScreen login={login} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)]">
+      {/* Navbar */}
+      <div className="relative z-20 px-4 py-4">
+        <Navbar />
+      </div>
+
       {/* Header */}
       <div className="relative z-10 text-center py-8 px-4">
         <motion.h1
@@ -133,6 +180,64 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="relative z-10 px-4 pb-8">
         <div className="max-w-7xl mx-auto">
+          {/* Project Card */}
+          <div className="mb-8">
+            {projectLoading ? (
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-6">
+                <div className="animate-pulse">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-10 h-10 bg-white/20 rounded-lg"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-white/20 rounded w-32"></div>
+                      <div className="h-3 bg-white/20 rounded w-48"></div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-3 bg-white/20 rounded w-40"></div>
+                    <div className="h-3 bg-white/20 rounded w-36"></div>
+                    <div className="h-3 bg-white/20 rounded w-44"></div>
+                  </div>
+                </div>
+              </div>
+            ) : projectError ? (
+              <div className="bg-red-500/10 backdrop-blur-sm rounded-xl border border-red-500/20 p-6">
+                <div className="text-red-400 text-center">
+                  <p style={{ fontFamily: "Inter, sans-serif" }}>
+                    Failed to load project data
+                  </p>
+                  <p
+                    className="text-sm text-red-400/70 mt-2"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    {projectError.message}
+                  </p>
+                </div>
+              </div>
+            ) : project ? (
+              <ProjectCard
+                project={project}
+                onProjectUpdate={(updatedProject) => {
+                  console.log("Project updated:", updatedProject);
+                  // Here you would typically save the updated project to your backend
+                }}
+              />
+            ) : (
+              <div className="bg-yellow-500/10 backdrop-blur-sm rounded-xl border border-yellow-500/20 p-6">
+                <div className="text-yellow-400 text-center">
+                  <p style={{ fontFamily: "Inter, sans-serif" }}>
+                    No project found for username "songjamspace"
+                  </p>
+                  <p
+                    className="text-sm text-yellow-400/70 mt-2"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    Please check if the project exists in the database
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Analytics Section with Timeframe Selector */}
           <div className="mb-8">
             {/* Timeframe Selector - Aligned to the right */}
@@ -329,21 +434,22 @@ export default function Dashboard() {
                     className="text-lg font-bold text-white mb-2"
                     style={{ fontFamily: "Orbitron, sans-serif" }}
                   >
-                    Request KOL Shows
+                    X Space Shows
                   </h4>
                   <p
                     className="text-white/80 text-sm mb-4"
                     style={{ fontFamily: "Inter, sans-serif" }}
                   >
-                    Book influencer appearances for your project
+                    Book a show to promote your brand
                   </p>
                   <motion.button
                     className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-2 px-4 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200"
                     style={{ fontFamily: "Inter, sans-serif" }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={() => router.push("/shows")}
                   >
-                    Request Now
+                    Check Now
                   </motion.button>
                 </motion.div>
 
@@ -365,13 +471,19 @@ export default function Dashboard() {
                     className="text-white/80 text-sm mb-4"
                     style={{ fontFamily: "Inter, sans-serif" }}
                   >
-                    Send automated messages to your audience
+                    Send automated messages to your target audience
                   </p>
                   <motion.button
                     className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold py-2 px-4 rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all duration-200"
                     style={{ fontFamily: "Inter, sans-serif" }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={() =>
+                      window.open(
+                        "https://app.songjam.space/auto-dms",
+                        "_blank"
+                      )
+                    }
                   >
                     Setup Campaign
                   </motion.button>
@@ -402,6 +514,12 @@ export default function Dashboard() {
                     style={{ fontFamily: "Inter, sans-serif" }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={() =>
+                      window.open(
+                        "https://app.songjam.space/dashboard",
+                        "_blank"
+                      )
+                    }
                   >
                     Start Transcription
                   </motion.button>

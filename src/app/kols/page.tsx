@@ -7,6 +7,7 @@ import ScheduleCalendar from "@/components/schedule-calendar";
 import ScheduleForm from "@/components/schedule-form";
 import RecurringPatternSelector from "@/components/recurring-pattern-selector";
 import SuccessNotification from "@/components/success-notification";
+import Navbar from "@/components/navbar";
 
 interface ScheduledShow {
   id: string;
@@ -49,18 +50,39 @@ export default function KOLsPage() {
     }
   };
 
-  const handleShowSubmit = (showData: Omit<ScheduledShow, "id">) => {
-    const newShow: ScheduledShow = {
-      ...showData,
-      id: Date.now().toString(),
-    };
-    setUserShows((prev) => [...prev, newShow]);
-    setShowForm(false);
-    setSelectedSlots([]);
-    setSuccessMessage(
-      `"${showData.showName}" has been scheduled successfully!`
-    );
-    setShowSuccess(true);
+  const handleShowSubmit = (
+    showData: Omit<ScheduledShow, "id"> | Omit<ScheduledShow, "id">[]
+  ) => {
+    // Handle both single show and array of shows
+    if (Array.isArray(showData)) {
+      // Multiple shows (e.g., specific-days with multiple time slots)
+      const newShows: ScheduledShow[] = showData.map((show, index) => ({
+        ...show,
+        id: `${Date.now()}-${index}`,
+      }));
+      setUserShows((prev) => [...prev, ...newShows]);
+      setShowForm(false);
+      setSelectedSlots([]);
+      setSuccessMessage(
+        `"${showData[0].showName}" has been scheduled for ${
+          newShows.length
+        } time slot${newShows.length > 1 ? "s" : ""}!`
+      );
+      setShowSuccess(true);
+    } else {
+      // Single show
+      const newShow: ScheduledShow = {
+        ...showData,
+        id: Date.now().toString(),
+      };
+      setUserShows((prev) => [...prev, newShow]);
+      setShowForm(false);
+      setSelectedSlots([]);
+      setSuccessMessage(
+        `"${showData.showName}" has been scheduled successfully!`
+      );
+      setShowSuccess(true);
+    }
 
     // Auto-hide success notification after 3 seconds
     setTimeout(() => {
@@ -72,6 +94,11 @@ export default function KOLsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)]">
+      {/* Navbar */}
+      <div className="relative z-20 px-4 py-4">
+        <Navbar />
+      </div>
+
       {/* Header */}
       <div className="relative z-10 text-center py-8 px-4">
         <motion.h1

@@ -14,6 +14,7 @@ import {
   BarChart3,
   TrendingUp,
 } from "lucide-react";
+import Navbar from "@/components/navbar";
 
 interface ScheduledShow {
   id: string;
@@ -307,6 +308,11 @@ export default function ShowsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)]">
+      {/* Navbar */}
+      <div className="relative z-20 px-4 py-4">
+        <Navbar />
+      </div>
+
       {/* Header */}
       <div className="relative z-10 text-center py-8 px-4">
         <motion.h1

@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Clock, User } from "lucide-react";
 
 interface ScheduledShow {
   id: string;
@@ -31,6 +30,122 @@ const TIME_SLOTS = HOURS.flatMap((hour) => [
   `${hour.toString().padStart(2, "0")}:30`,
 ]);
 
+// Helper function to convert time string to minutes since midnight
+const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper function to get time slots that a show occupies based on its duration
+const getShowTimeSlots = (startTime: string, duration: number): string[] => {
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = startMinutes + duration;
+  const occupiedSlots: string[] = [];
+
+  for (const slot of TIME_SLOTS) {
+    const slotMinutes = timeToMinutes(slot);
+    // Check if this slot starts within the show's duration
+    if (slotMinutes >= startMinutes && slotMinutes < endMinutes) {
+      occupiedSlots.push(slot);
+    }
+  }
+
+  return occupiedSlots;
+};
+
+// Helper function to check if a time slot is occupied by a show (considering duration)
+const isTimeSlotOccupiedByShow = (
+  show: ScheduledShow,
+  day: number,
+  time: string
+): boolean => {
+  const shouldCheckDay = () => {
+    if (show.pattern === "one-time") {
+      return show.day === day;
+    } else if (show.pattern === "weekdays") {
+      return show.day === day && day >= 1 && day <= 5;
+    } else if (show.pattern === "daily") {
+      return show.day === day;
+    } else if (show.pattern === "specific-days") {
+      return show.days?.includes(day) || false;
+    }
+    return false;
+  };
+
+  if (!shouldCheckDay()) return false;
+
+  const occupiedSlots = getShowTimeSlots(show.time, show.duration);
+  return occupiedSlots.includes(time);
+};
+
+// Helper function to check if this is the first slot of a show (where details should be displayed)
+const isFirstSlotOfShow = (
+  show: ScheduledShow,
+  day: number,
+  time: string
+): boolean => {
+  const shouldCheckDay = () => {
+    if (show.pattern === "one-time") {
+      return show.day === day;
+    } else if (show.pattern === "weekdays") {
+      return show.day === day && day >= 1 && day <= 5;
+    } else if (show.pattern === "daily") {
+      return show.day === day;
+    } else if (show.pattern === "specific-days") {
+      return show.days?.includes(day) || false;
+    }
+    return false;
+  };
+
+  return shouldCheckDay() && show.time === time;
+};
+
+// Helper function to calculate how many slots a show spans
+const getShowSlotSpan = (duration: number): number => {
+  return Math.ceil(duration / 30); // Each slot is 30 minutes
+};
+
+// Helper function to get the show that should be rendered in a merged block
+const getShowForMergedBlock = (
+  day: number,
+  time: string,
+  shows: ScheduledShow[]
+): { show: ScheduledShow; span: number } | null => {
+  for (const show of shows) {
+    if (isFirstSlotOfShow(show, day, time)) {
+      const span = getShowSlotSpan(show.duration);
+      return { show, span };
+    }
+  }
+  return null;
+};
+
+// Helper function to check if a slot should be hidden (part of a merged block)
+const shouldHideSlot = (
+  day: number,
+  time: string,
+  shows: ScheduledShow[]
+): boolean => {
+  const timeIndex = TIME_SLOTS.indexOf(time);
+  if (timeIndex === -1) return false;
+
+  // Check if this slot is covered by a show that starts earlier
+  for (let i = 0; i < timeIndex; i++) {
+    const earlierTime = TIME_SLOTS[i];
+    const showForEarlierSlot = getShowForMergedBlock(day, earlierTime, shows);
+
+    if (showForEarlierSlot) {
+      const { span } = showForEarlierSlot;
+      const endIndex = i + span;
+      if (timeIndex < endIndex) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
 export default function ScheduleCalendar({
   scheduledShows,
   selectedSlots,
@@ -39,31 +154,13 @@ export default function ScheduleCalendar({
 }: ScheduleCalendarProps) {
   const isSlotOccupied = (day: number, time: string) => {
     return scheduledShows.some((show) => {
-      if (show.pattern === "one-time") {
-        return show.day === day && show.time === time;
-      } else if (show.pattern === "weekdays") {
-        return show.day === day && show.time === time && day >= 1 && day <= 5;
-      } else if (show.pattern === "daily") {
-        return show.day === day && show.time === time;
-      } else if (show.pattern === "specific-days") {
-        return show.days?.includes(day) && show.time === time;
-      }
-      return false;
+      return isTimeSlotOccupiedByShow(show, day, time);
     });
   };
 
   const getShowForSlot = (day: number, time: string) => {
     return scheduledShows.find((show) => {
-      if (show.pattern === "one-time") {
-        return show.day === day && show.time === time;
-      } else if (show.pattern === "weekdays") {
-        return show.day === day && show.time === time && day >= 1 && day <= 5;
-      } else if (show.pattern === "daily") {
-        return show.day === day && show.time === time;
-      } else if (show.pattern === "specific-days") {
-        return show.days?.includes(day) && show.time === time;
-      }
-      return false;
+      return isFirstSlotOfShow(show, day, time);
     });
   };
 
@@ -104,97 +201,155 @@ export default function ScheduleCalendar({
 
   return (
     <div className="p-4 md:p-6">
-      {/* Calendar Header */}
-      <div className="grid grid-cols-8 gap-1 mb-4">
-        <div
-          className="text-center text-white/60 text-sm font-medium"
-          style={{ fontFamily: "Inter, sans-serif" }}
-        >
-          Time
-        </div>
-        {DAYS.map((day, index) => (
-          <div
-            key={day}
-            className="text-center text-white font-medium text-sm p-2"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="space-y-1">
-        {TIME_SLOTS.map((time, timeIndex) => (
-          <div key={time} className="grid grid-cols-8 gap-1">
-            {/* Time Label */}
-            <div className="flex items-center justify-center h-10 md:h-12">
-              <span
-                className="text-white/60 text-xs font-medium"
+      {/* Calendar Container with Horizontal Scroll */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[800px]">
+          {/* Calendar Header */}
+          <div className="grid grid-cols-8 gap-1 mb-4">
+            <div
+              className="text-center text-white/60 text-sm font-medium min-w-[80px]"
+              style={{ fontFamily: "Inter, sans-serif" }}
+            >
+              Time
+            </div>
+            {DAYS.map((day, index) => (
+              <div
+                key={day}
+                className="text-center text-white font-medium text-sm p-2 min-w-[100px]"
                 style={{ fontFamily: "Inter, sans-serif" }}
               >
-                {formatTime(time)}
-              </span>
-            </div>
-
-            {/* Day Columns */}
-            {DAYS.map((_, dayIndex) => {
-              const isOccupied = isSlotOccupied(dayIndex, time);
-              const isSelected = isSlotSelected(dayIndex, time);
-              const isHighlighted = isSlotHighlighted(dayIndex, time);
-              const show = getShowForSlot(dayIndex, time);
-              const isConflict = isOccupied && isSelected;
-
-              return (
-                <motion.div
-                  key={`${dayIndex}-${time}`}
-                  className={`h-10 md:h-12 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
-                    isConflict
-                      ? "bg-red-500/20 border-red-400/50"
-                      : isSelected
-                      ? "bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-400/50"
-                      : isHighlighted && !isOccupied
-                      ? "bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-blue-400/30"
-                      : isOccupied
-                      ? "bg-white/10 border-white/20"
-                      : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
-                  }`}
-                  whileHover={{ scale: isOccupied ? 1 : 1.02 }}
-                  whileTap={{ scale: isOccupied ? 1 : 0.98 }}
-                  onClick={() => !isOccupied && onSlotSelect(dayIndex, time)}
-                >
-                  {isOccupied && show ? (
-                    <div className="p-2 h-full flex flex-col justify-center">
-                      <div className="flex items-center space-x-1 mb-1">
-                        <User className="w-3 h-3 text-white/70" />
-                        <span
-                          className="text-white text-xs font-medium truncate"
-                          style={{ fontFamily: "Inter, sans-serif" }}
-                        >
-                          {show.showName}
-                        </span>
-                      </div>
-                      <div
-                        className="text-white/60 text-xs truncate"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        {show.duration}min
-                      </div>
-                    </div>
-                  ) : isSelected ? (
-                    <div className="p-2 h-full flex items-center justify-center">
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
-                    </div>
-                  ) : isHighlighted && !isOccupied ? (
-                    <div className="p-2 h-full flex items-center justify-center">
-                      <div className="w-1.5 h-1.5 bg-blue-400 rounded-full opacity-60"></div>
-                    </div>
-                  ) : null}
-                </motion.div>
-              );
-            })}
+                {day}
+              </div>
+            ))}
           </div>
-        ))}
+
+          {/* Calendar Grid */}
+          <div className="space-y-1">
+            {TIME_SLOTS.map((time, timeIndex) => (
+              <div key={time} className="relative grid grid-cols-8 gap-1">
+                {/* Time Label */}
+                <div className="flex items-center justify-center h-10 md:h-12 min-w-[80px]">
+                  <span
+                    className="text-white/60 text-xs font-medium"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    {formatTime(time)}
+                  </span>
+                </div>
+
+                {/* Day Columns */}
+                {DAYS.map((_, dayIndex) => {
+                  const isOccupied = isSlotOccupied(dayIndex, time);
+                  const isSelected = isSlotSelected(dayIndex, time);
+                  const isHighlighted = isSlotHighlighted(dayIndex, time);
+                  const show = getShowForSlot(dayIndex, time);
+                  const isConflict = isOccupied && isSelected;
+                  const mergedBlock = getShowForMergedBlock(
+                    dayIndex,
+                    time,
+                    scheduledShows
+                  );
+                  const shouldHide = shouldHideSlot(
+                    dayIndex,
+                    time,
+                    scheduledShows
+                  );
+
+                  // If this slot is part of any merged block (including first slot), render invisible placeholder
+                  if (shouldHide || mergedBlock) {
+                    return (
+                      <div
+                        key={`${dayIndex}-${time}`}
+                        className="h-10 md:h-12 min-w-[100px] relative"
+                      >
+                        {/* Only render the merged block on the first slot */}
+                        {mergedBlock && (
+                          <motion.div
+                            key={`${dayIndex}-${time}-merged`}
+                            className="absolute top-0 left-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-2 border-indigo-400/40 rounded-lg transition-all duration-200 z-20"
+                            style={{
+                              height: `${
+                                44 * mergedBlock.span +
+                                4 * (mergedBlock.span - 1)
+                              }px`,
+                              width: "100%",
+                            }}
+                            whileHover={{ scale: 1.02, zIndex: 30 }}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <div className="p-2 h-full flex items-center justify-center">
+                              <span
+                                className="text-white text-xs font-medium text-center"
+                                style={{ fontFamily: "Inter, sans-serif" }}
+                              >
+                                {mergedBlock.show.showName}
+                              </span>
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  // If this slot is occupied by a show (30-min shows only, since merged blocks are handled above)
+                  if (isOccupied && show) {
+                    return (
+                      <motion.div
+                        key={`${dayIndex}-${time}`}
+                        className="h-10 md:h-12 rounded-lg border-2 transition-all duration-200 min-w-[100px] bg-white/10 border-white/20"
+                        whileHover={{ scale: 1 }}
+                      >
+                        <div className="p-2 h-full flex items-center justify-center">
+                          <span
+                            className="text-white text-xs font-medium text-center"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          >
+                            {show.showName}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  }
+
+                  // Regular slot rendering for available/selected slots
+                  return (
+                    <motion.div
+                      key={`${dayIndex}-${time}`}
+                      className={`h-10 md:h-12 rounded-lg border-2 transition-all duration-200 cursor-pointer min-w-[100px] ${
+                        isConflict
+                          ? "bg-red-500/20 border-red-400/50"
+                          : isSelected
+                          ? "bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-400/50"
+                          : isHighlighted && !isOccupied
+                          ? "bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-blue-400/30"
+                          : isOccupied
+                          ? "bg-white/10 border-white/20"
+                          : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                      }`}
+                      whileHover={{ scale: isOccupied ? 1 : 1.02 }}
+                      whileTap={{ scale: isOccupied ? 1 : 0.98 }}
+                      onClick={() =>
+                        !isOccupied && onSlotSelect(dayIndex, time)
+                      }
+                    >
+                      {isSelected ? (
+                        <div className="p-2 h-full flex items-center justify-center">
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        </div>
+                      ) : isHighlighted && !isOccupied ? (
+                        <div className="p-2 h-full flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full opacity-60"></div>
+                        </div>
+                      ) : null}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Legend */}
@@ -215,8 +370,8 @@ export default function ScheduleCalendar({
           <span className="text-white/60">Pattern Preview</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-white/10 border border-white/20 rounded"></div>
-          <span className="text-white/60">Occupied</span>
+          <div className="w-3 h-3 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/40 rounded"></div>
+          <span className="text-white/60">Scheduled Show</span>
         </div>
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 bg-red-500/20 border border-red-400/50 rounded"></div>

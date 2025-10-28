@@ -14,6 +14,9 @@ import {
   Users,
   UserCheck,
   UserX,
+  Plus,
+  Trash2,
+  DollarSign,
 } from "lucide-react";
 
 interface Speaker {
@@ -22,6 +25,14 @@ interface Speaker {
   handle: string;
   avatar?: string;
   role: "regular" | "guest" | "unassigned";
+}
+
+interface PricingCard {
+  id: string;
+  label: string;
+  description: string;
+  pricing: number;
+  includedServices: string[];
 }
 
 interface ScheduledShow {
@@ -35,13 +46,16 @@ interface ScheduledShow {
   pattern: "one-time" | "specific-days" | "weekdays" | "daily";
   days?: number[]; // for specific-days pattern
   speakers?: Speaker[];
+  pricingCards?: PricingCard[];
 }
 
 interface ScheduleFormProps {
   selectedSlots: { day: number; time: string }[];
   selectedPattern: "one-time" | "specific-days" | "weekdays" | "daily";
   onClose: () => void;
-  onSubmit: (showData: Omit<ScheduledShow, "id">) => void;
+  onSubmit: (
+    showData: Omit<ScheduledShow, "id"> | Omit<ScheduledShow, "id">[]
+  ) => void;
 }
 
 const DURATION_OPTIONS = [
@@ -84,6 +98,7 @@ export default function ScheduleForm({
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [isFetchingSpeakers, setIsFetchingSpeakers] = useState(false);
   const [fetchSuccess, setFetchSuccess] = useState(false);
+  const [pricingCards, setPricingCards] = useState<PricingCard[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (file: File) => {
@@ -227,6 +242,74 @@ export default function ScheduleForm({
     setFormData((prev) => ({ ...prev, previousSpaceUrl: "" }));
   };
 
+  const addPricingCard = () => {
+    const newCard: PricingCard = {
+      id: Date.now().toString(),
+      label: "",
+      description: "",
+      pricing: 0,
+      includedServices: [""],
+    };
+    setPricingCards((prev) => [...prev, newCard]);
+  };
+
+  const removePricingCard = (cardId: string) => {
+    setPricingCards((prev) => prev.filter((card) => card.id !== cardId));
+  };
+
+  const updatePricingCard = (cardId: string, updates: Partial<PricingCard>) => {
+    setPricingCards((prev) =>
+      prev.map((card) => (card.id === cardId ? { ...card, ...updates } : card))
+    );
+  };
+
+  const addServiceToPricingCard = (cardId: string) => {
+    setPricingCards((prev) =>
+      prev.map((card) =>
+        card.id === cardId
+          ? { ...card, includedServices: [...card.includedServices, ""] }
+          : card
+      )
+    );
+  };
+
+  const removeServiceFromPricingCard = (
+    cardId: string,
+    serviceIndex: number
+  ) => {
+    setPricingCards((prev) =>
+      prev.map((card) =>
+        card.id === cardId
+          ? {
+              ...card,
+              includedServices: card.includedServices.filter(
+                (_, index) => index !== serviceIndex
+              ),
+            }
+          : card
+      )
+    );
+  };
+
+  const updateServiceInPricingCard = (
+    cardId: string,
+    serviceIndex: number,
+    value: string
+  ) => {
+    setPricingCards((prev) =>
+      prev.map((card) =>
+        card.id === cardId
+          ? {
+              ...card,
+              includedServices: card.includedServices.map((service, index) =>
+                index === serviceIndex ? value : service
+              ),
+            }
+          : card
+      )
+    );
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -242,6 +325,35 @@ export default function ScheduleForm({
       newErrors.description = "Description must be 500 characters or less";
     }
 
+    // Validate pricing cards
+    pricingCards.forEach((card, index) => {
+      if (
+        card.label.trim() &&
+        (!card.description.trim() || card.pricing <= 0)
+      ) {
+        newErrors[`pricing_${index}`] = "Complete all fields for pricing cards";
+      } else if (
+        card.description.trim() &&
+        (!card.label.trim() || card.pricing <= 0)
+      ) {
+        newErrors[`pricing_${index}`] = "Complete all fields for pricing cards";
+      } else if (
+        card.pricing > 0 &&
+        (!card.label.trim() || !card.description.trim())
+      ) {
+        newErrors[`pricing_${index}`] = "Complete all fields for pricing cards";
+      }
+
+      // Validate included services
+      const emptyServices = card.includedServices.filter(
+        (service) => !service.trim()
+      );
+      if (emptyServices.length > 0 && card.includedServices.length > 1) {
+        newErrors[`pricing_services_${index}`] =
+          "Remove empty services or fill them in";
+      }
+    });
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -256,26 +368,63 @@ export default function ScheduleForm({
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const showData: Omit<ScheduledShow, "id"> = {
+    // Extract unique days from selectedSlots for specific-days pattern
+    const selectedDaysFromSlots =
+      selectedPattern === "specific-days"
+        ? Array.from(new Set(selectedSlots.map((slot) => slot.day))).sort()
+        : undefined;
+
+    // Group selected slots by day and time for better handling
+    const baseShowData = {
       showName: formData.showName,
       description: formData.description,
       coverImage: formData.coverImage,
       duration: formData.duration,
-      day: selectedSlots[0]?.day || 0,
-      time: selectedSlots[0]?.time || "09:00",
       pattern: selectedPattern,
-      days:
-        selectedPattern === "specific-days" ? formData.selectedDays : undefined,
+      days: selectedDaysFromSlots,
       speakers: speakers.length > 0 ? speakers : undefined,
+      pricingCards:
+        pricingCards.length > 0
+          ? pricingCards.filter(
+              (card) =>
+                card.label.trim() && card.description.trim() && card.pricing > 0
+            )
+          : undefined,
     };
 
-    setShowSuccess(true);
+    // For patterns that support multiple time slots, create separate show instances
+    if (
+      selectedSlots.length > 1 &&
+      (selectedPattern === "specific-days" || selectedPattern === "one-time")
+    ) {
+      // Create separate show for each selected slot
+      const showsData = selectedSlots.map((slot) => ({
+        ...baseShowData,
+        day: slot.day,
+        time: slot.time,
+      }));
 
-    setTimeout(() => {
-      onSubmit(showData);
-      setIsSubmitting(false);
-      setShowSuccess(false);
-    }, 1500);
+      setShowSuccess(true);
+      setTimeout(() => {
+        onSubmit(showsData);
+        setIsSubmitting(false);
+        setShowSuccess(false);
+      }, 1500);
+    } else {
+      // Single show instance for other patterns
+      const showData: Omit<ScheduledShow, "id"> = {
+        ...baseShowData,
+        day: selectedSlots[0]?.day || 0,
+        time: selectedSlots[0]?.time || "09:00",
+      };
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        onSubmit(showData);
+        setIsSubmitting(false);
+        setShowSuccess(false);
+      }, 1500);
+    }
   };
 
   const handleDayToggle = (day: number) => {
@@ -293,6 +442,37 @@ export default function ScheduleForm({
     const ampm = hour >= 12 ? "PM" : "AM";
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
     return `${DAYS[day]} at ${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(":");
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const groupSlotsByDay = () => {
+    const grouped = selectedSlots.reduce((acc, slot) => {
+      if (!acc[slot.day]) {
+        acc[slot.day] = [];
+      }
+      acc[slot.day].push(slot.time);
+      return acc;
+    }, {} as Record<number, string[]>);
+
+    // Sort days and times
+    const sortedDays = Object.keys(grouped)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    const result: { day: number; times: string[] }[] = [];
+    sortedDays.forEach((day) => {
+      const times = grouped[day].sort();
+      result.push({ day, times });
+    });
+
+    return result;
   };
 
   return (
@@ -351,19 +531,36 @@ export default function ScheduleForm({
               >
                 Selected Time Slots
               </label>
-              <div className="space-y-2">
-                {selectedSlots.map((slot, index) => (
-                  <div
-                    key={`${slot.day}-${slot.time}`}
-                    className="flex items-center space-x-2 p-3 bg-white/10 rounded-lg border border-white/20"
-                  >
-                    <Clock className="w-4 h-4 text-white/70" />
-                    <span
-                      className="text-white text-sm"
-                      style={{ fontFamily: "Inter, sans-serif" }}
-                    >
-                      {formatTimeSlot(slot.day, slot.time)}
-                    </span>
+              <div className="space-y-3">
+                {groupSlotsByDay().map(({ day, times }) => (
+                  <div key={day} className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-white/70" />
+                      <span
+                        className="text-white font-medium text-sm"
+                        style={{ fontFamily: "Inter, sans-serif" }}
+                      >
+                        {DAYS[day]}
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto scrollbar-hide">
+                      <div className="flex space-x-2 pb-1 min-w-max">
+                        {times.map((time) => (
+                          <div
+                            key={`${day}-${time}`}
+                            className="flex items-center space-x-1.5 px-3 py-2 bg-white/10 rounded-full border border-white/20 whitespace-nowrap"
+                          >
+                            <Clock className="w-3.5 h-3.5 text-white/70 flex-shrink-0" />
+                            <span
+                              className="text-white text-sm"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              {formatTime(time)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -723,6 +920,221 @@ export default function ScheduleForm({
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Pricing Cards */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="w-5 h-5 text-green-400" />
+                  <label
+                    className="text-white font-medium"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    Pricing Options
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={addPricingCard}
+                  className="flex items-center space-x-2 px-3 py-1.5 bg-green-500/20 border border-green-400/40 rounded-lg text-green-300 text-sm font-medium hover:bg-green-500/30 transition-colors"
+                  style={{ fontFamily: "Inter, sans-serif" }}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Pricing</span>
+                </button>
+              </div>
+
+              <p
+                className="text-white/60 text-sm mb-4"
+                style={{ fontFamily: "Inter, sans-serif" }}
+              >
+                Create different pricing tiers for your show (optional)
+              </p>
+
+              {pricingCards.length > 0 && (
+                <div className="space-y-4 max-h-80 overflow-y-auto">
+                  {pricingCards.map((card, index) => (
+                    <div
+                      key={card.id}
+                      className="p-4 bg-white/5 border border-white/10 rounded-lg"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span
+                          className="text-white/80 text-sm font-medium"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Pricing Option {index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removePricingCard(card.id)}
+                          className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {/* Label */}
+                        <div>
+                          <label
+                            className="block text-white/90 text-sm font-medium mb-1"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          >
+                            Label *
+                          </label>
+                          <input
+                            type="text"
+                            value={card.label}
+                            onChange={(e) =>
+                              updatePricingCard(card.id, {
+                                label: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-400/50 text-sm"
+                            placeholder="e.g., Basic, Premium, VIP"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          />
+                        </div>
+
+                        {/* Description */}
+                        <div>
+                          <label
+                            className="block text-white/90 text-sm font-medium mb-1"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          >
+                            Description *
+                          </label>
+                          <textarea
+                            value={card.description}
+                            onChange={(e) =>
+                              updatePricingCard(card.id, {
+                                description: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-400/50 text-sm resize-none"
+                            placeholder="Describe what's included in this pricing tier"
+                            rows={2}
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          />
+                        </div>
+
+                        {/* Pricing */}
+                        <div>
+                          <label
+                            className="block text-white/90 text-sm font-medium mb-1"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          >
+                            Price ($) *
+                          </label>
+                          <input
+                            type="number"
+                            value={card.pricing || ""}
+                            onChange={(e) =>
+                              updatePricingCard(card.id, {
+                                pricing: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-400/50 text-sm"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          />
+                        </div>
+
+                        {/* Included Services */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label
+                              className="text-white/90 text-sm font-medium"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              Included Services
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => addServiceToPricingCard(card.id)}
+                              className="text-green-400 hover:text-green-300 text-xs font-medium flex items-center space-x-1 transition-colors"
+                              style={{ fontFamily: "Inter, sans-serif" }}
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add Service</span>
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {card.includedServices.map(
+                              (service, serviceIndex) => (
+                                <div
+                                  key={serviceIndex}
+                                  className="flex space-x-2"
+                                >
+                                  <input
+                                    type="text"
+                                    value={service}
+                                    onChange={(e) =>
+                                      updateServiceInPricingCard(
+                                        card.id,
+                                        serviceIndex,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-400/50 text-sm"
+                                    placeholder="e.g., 2 Hosted Spaces, 1k Followers"
+                                    style={{ fontFamily: "Inter, sans-serif" }}
+                                  />
+                                  {card.includedServices.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        removeServiceFromPricingCard(
+                                          card.id,
+                                          serviceIndex
+                                        )
+                                      }
+                                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Error message for this pricing card */}
+                      {(errors[`pricing_${index}`] ||
+                        errors[`pricing_services_${index}`]) && (
+                        <p className="text-red-400 text-xs mt-2">
+                          {errors[`pricing_${index}`] ||
+                            errors[`pricing_services_${index}`]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {pricingCards.length === 0 && (
+                <div className="text-center py-8 border-2 border-dashed border-white/20 rounded-lg">
+                  <DollarSign className="w-8 h-8 text-white/30 mx-auto mb-2" />
+                  <p
+                    className="text-white/60 text-sm"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    No pricing options added yet
+                  </p>
+                  <p
+                    className="text-white/40 text-xs mt-1"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    Click "Add Pricing" to create pricing tiers
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}
