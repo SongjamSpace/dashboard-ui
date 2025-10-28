@@ -325,7 +325,7 @@ export default function ShowsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          Book one show to promote your brand
+          Book a show to promote your brand
         </motion.p>
       </div>
 
@@ -421,33 +421,54 @@ export default function ShowsPage() {
                           </span>
                         </div>
 
-                        {/* Participants */}
-                        {show.participants && show.participants.length > 0 && (
-                          <div className="flex items-center pt-2">
-                            <span className="text-white/60 text-xs mr-3">
-                              Participants:
-                            </span>
-                            <div className="flex -space-x-2">
-                              {show.participants
-                                .slice(0, 3)
-                                .map((profile, index) => (
-                                  <img
-                                    key={index}
-                                    src={profile}
-                                    alt={`Participant ${index + 1}`}
-                                    className="w-8 h-8 rounded-full border-2 border-white/20 bg-white/10 object-cover"
-                                  />
-                                ))}
-                              {show.participants.length > 3 && (
-                                <div className="w-8 h-8 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center">
-                                  <span className="text-white/60 text-xs font-medium">
-                                    +{show.participants.length - 3}
-                                  </span>
-                                </div>
-                              )}
+                        {/* Participants and Book Button */}
+                        <div className="flex items-center justify-between pt-2">
+                          {show.participants && show.participants.length > 0 ? (
+                            <div className="flex items-center">
+                              <span className="text-white/60 text-xs mr-3">
+                                Participants:
+                              </span>
+                              <div className="flex -space-x-2">
+                                {show.participants
+                                  .slice(0, 3)
+                                  .map((profile, index) => (
+                                    <img
+                                      key={index}
+                                      src={profile}
+                                      alt={`Participant ${index + 1}`}
+                                      className="w-8 h-8 rounded-full border-2 border-white/20 bg-white/10 object-cover"
+                                    />
+                                  ))}
+                                {show.participants.length > 3 && (
+                                  <div className="w-8 h-8 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center">
+                                    <span className="text-white/60 text-xs font-medium">
+                                      +{show.participants.length - 3}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          ) : (
+                            <div></div>
+                          )}
+
+                          {/* Book Show Button */}
+                          <motion.button
+                            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 px-4 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/25 text-sm"
+                            style={{ fontFamily: "Orbitron, sans-serif" }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log(`Book show: ${show.showName}`);
+                            }}
+                          >
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Book Show
+                            </span>
+                          </motion.button>
+                        </div>
                       </div>
                     </div>
                   </motion.div>
