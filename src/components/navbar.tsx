@@ -76,6 +76,22 @@ export default function Navbar({ inverse }: { inverse?: boolean }) {
             DASHBOARD
           </Button>
         </Link>
+        <Link href="/kols">
+          <Button
+            variant="ghost"
+            className={inverse ? "text-[#48333D] hover:text-[#48333D]/60" : ""}
+          >
+            SCHEDULE
+          </Button>
+        </Link>
+        <Link href="/shows">
+          <Button
+            variant="ghost"
+            className={inverse ? "text-[#48333D] hover:text-[#48333D]/60" : ""}
+          >
+            SHOWS
+          </Button>
+        </Link>
         <NavbarDropdown inverse={inverse} />
         {/* <Link href="" rel="noopener noreferrer">
           <Button

@@ -22,51 +22,6 @@ interface ScheduledShow {
   endDate?: string; // for recurring shows
 }
 
-// Mock data for existing scheduled shows
-const mockScheduledShows: ScheduledShow[] = [
-  {
-    id: "1",
-    showName: "Crypto Daily",
-    description: "Daily crypto market analysis and news",
-    duration: 60,
-    day: 1, // Monday
-    time: "17:30",
-    pattern: "weekdays",
-    endDate: "2024-12-31",
-  },
-  {
-    id: "2",
-    showName: "DeFi Deep Dive",
-    description: "Weekly deep dive into DeFi protocols",
-    duration: 90,
-    day: 3, // Wednesday
-    time: "18:00",
-    pattern: "one-time",
-    startDate: "2024-01-15",
-  },
-  {
-    id: "3",
-    showName: "NFT Showcase",
-    description: "Showcasing the latest NFT collections",
-    duration: 45,
-    day: 5, // Friday
-    time: "19:00",
-    pattern: "specific-days",
-    days: [5, 6], // Friday and Saturday
-    endDate: "2024-06-30",
-  },
-  {
-    id: "4",
-    showName: "Morning Brief",
-    description: "Daily morning crypto brief",
-    duration: 30,
-    day: 0, // Sunday
-    time: "11:00",
-    pattern: "daily",
-    endDate: "2024-12-31",
-  },
-];
-
 export default function KOLsPage() {
   const [selectedSlots, setSelectedSlots] = useState<
     { day: number; time: string }[]
@@ -113,7 +68,7 @@ export default function KOLsPage() {
     }, 3000);
   };
 
-  const allShows = [...mockScheduledShows, ...userShows];
+  const allShows = [...userShows];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)]">
@@ -126,7 +81,7 @@ export default function KOLsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          KOL Show Scheduler
+          X Space Scheduler
         </motion.h1>
         <motion.p
           className="text-lg md:text-xl max-w-4xl mx-auto drop-shadow-lg text-white/90 px-4"

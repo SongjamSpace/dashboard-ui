@@ -2,7 +2,27 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef } from "react";
-import { X, Mic, Image, Clock, Calendar, Upload, Check } from "lucide-react";
+import {
+  X,
+  Mic,
+  Image,
+  Clock,
+  Calendar,
+  Upload,
+  Check,
+  Link,
+  Users,
+  UserCheck,
+  UserX,
+} from "lucide-react";
+
+interface Speaker {
+  id: string;
+  name: string;
+  handle: string;
+  avatar?: string;
+  role: "regular" | "guest" | "unassigned";
+}
 
 interface ScheduledShow {
   id: string;
@@ -14,6 +34,7 @@ interface ScheduledShow {
   time: string; // HH:MM format
   pattern: "one-time" | "specific-days" | "weekdays" | "daily";
   days?: number[]; // for specific-days pattern
+  speakers?: Speaker[];
 }
 
 interface ScheduleFormProps {
@@ -53,12 +74,16 @@ export default function ScheduleForm({
     duration: 60,
     endDate: "",
     selectedDays: [] as number[],
+    previousSpaceUrl: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
+  const [isFetchingSpeakers, setIsFetchingSpeakers] = useState(false);
+  const [fetchSuccess, setFetchSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (file: File) => {
@@ -135,6 +160,73 @@ export default function ScheduleForm({
     }
   };
 
+  const fetchSpeakersFromUrl = async (url: string) => {
+    if (!url.trim()) return;
+
+    setIsFetchingSpeakers(true);
+    setErrors((prev) => {
+      const { previousSpaceUrl, ...rest } = prev;
+      return rest;
+    });
+
+    try {
+      // Simulate API call - In a real app, this would fetch from Twitter Spaces API
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Mock data - simulating fetched speakers
+      const mockSpeakers: Speaker[] = [
+        {
+          id: "1",
+          name: "John Smith",
+          handle: "@johnsmith",
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=john`,
+          role: "unassigned",
+        },
+        {
+          id: "2",
+          name: "Sarah Wilson",
+          handle: "@sarahw",
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=sarah`,
+          role: "unassigned",
+        },
+        {
+          id: "3",
+          name: "Mike Chen",
+          handle: "@mikechen",
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=mike`,
+          role: "unassigned",
+        },
+      ];
+
+      setSpeakers(mockSpeakers);
+      setFetchSuccess(true);
+      setTimeout(() => setFetchSuccess(false), 2000);
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        previousSpaceUrl: "Failed to fetch speakers from this URL",
+      }));
+    } finally {
+      setIsFetchingSpeakers(false);
+    }
+  };
+
+  const handleSpeakerRoleChange = (
+    speakerId: string,
+    role: "regular" | "guest"
+  ) => {
+    setSpeakers((prev) =>
+      prev.map((speaker) =>
+        speaker.id === speakerId ? { ...speaker, role } : speaker
+      )
+    );
+  };
+
+  const clearSpeakers = () => {
+    setSpeakers([]);
+    setFormData((prev) => ({ ...prev, previousSpaceUrl: "" }));
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -174,6 +266,7 @@ export default function ScheduleForm({
       pattern: selectedPattern,
       days:
         selectedPattern === "specific-days" ? formData.selectedDays : undefined,
+      speakers: speakers.length > 0 ? speakers : undefined,
     };
 
     setShowSuccess(true);
@@ -335,6 +428,202 @@ export default function ScheduleForm({
               </p>
             </div>
 
+            {/* Previous Space URL */}
+            <div>
+              <label
+                className="block text-white font-medium mb-2"
+                style={{ fontFamily: "Inter, sans-serif" }}
+              >
+                Previous Space URL
+              </label>
+              <p
+                className="text-white/60 text-sm mb-3"
+                style={{ fontFamily: "Inter, sans-serif" }}
+              >
+                Fetch other speakers details from a previous Twitter Space to
+                label as regulars or guests
+              </p>
+              <div className="flex space-x-2">
+                <input
+                  type="url"
+                  value={formData.previousSpaceUrl}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      previousSpaceUrl: e.target.value,
+                    }))
+                  }
+                  className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
+                  placeholder="https://twitter.com/i/spaces/..."
+                  style={{ fontFamily: "Inter, sans-serif" }}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    fetchSpeakersFromUrl(formData.previousSpaceUrl)
+                  }
+                  disabled={
+                    !formData.previousSpaceUrl.trim() || isFetchingSpeakers
+                  }
+                  className="px-4 py-3 bg-blue-500/20 border border-blue-400/40 rounded-lg text-blue-300 font-medium hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  style={{ fontFamily: "Inter, sans-serif" }}
+                >
+                  {isFetchingSpeakers ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></div>
+                      <span>Fetching...</span>
+                    </>
+                  ) : fetchSuccess ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Fetched!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Link className="w-4 h-4" />
+                      <span>Fetch</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {errors.previousSpaceUrl && (
+                <p className="text-red-400 text-sm mt-2">
+                  {errors.previousSpaceUrl}
+                </p>
+              )}
+            </div>
+
+            {/* Fetched Speakers */}
+            {speakers.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-5 h-5 text-purple-400" />
+                    <label
+                      className="text-white font-medium"
+                      style={{ fontFamily: "Inter, sans-serif" }}
+                    >
+                      Fetched Speakers ({speakers.length})
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearSpeakers}
+                    className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <p
+                  className="text-white/60 text-sm mb-4"
+                  style={{ fontFamily: "Inter, sans-serif" }}
+                >
+                  Label these profiles as regulars (frequent co-hosts) or guests
+                  (occasional speakers)
+                </p>
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {speakers.map((speaker) => (
+                    <div
+                      key={speaker.id}
+                      className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        {speaker.avatar ? (
+                          <img
+                            src={speaker.avatar}
+                            alt={speaker.name}
+                            className="w-10 h-10 rounded-full bg-purple-500/20"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                            <span className="text-purple-300 text-sm font-medium">
+                              {speaker.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <p
+                            className="text-white font-medium"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          >
+                            {speaker.name}
+                          </p>
+                          <p
+                            className="text-white/60 text-sm"
+                            style={{ fontFamily: "Inter, sans-serif" }}
+                          >
+                            {speaker.handle}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSpeakerRoleChange(speaker.id, "regular")
+                          }
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            speaker.role === "regular"
+                              ? "bg-green-500/30 border border-green-400/50 text-green-300"
+                              : "bg-white/5 border border-white/20 text-white/70 hover:bg-green-500/10 hover:border-green-400/30"
+                          }`}
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          <div className="flex items-center space-x-1">
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Regular</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSpeakerRoleChange(speaker.id, "guest")
+                          }
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            speaker.role === "guest"
+                              ? "bg-blue-500/30 border border-blue-400/50 text-blue-300"
+                              : "bg-white/5 border border-white/20 text-white/70 hover:bg-blue-500/10 hover:border-blue-400/30"
+                          }`}
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          <div className="flex items-center space-x-1">
+                            <UserX className="w-3.5 h-3.5" />
+                            <span>Guest</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 p-3 bg-purple-500/10 border border-purple-400/20 rounded-lg">
+                  <div className="flex items-center space-x-2 text-sm">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-green-400/30 border border-green-400/50 rounded"></div>
+                      <span className="text-white/80">
+                        Regulars:{" "}
+                        {speakers.filter((s) => s.role === "regular").length}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-blue-400/30 border border-blue-400/50 rounded"></div>
+                      <span className="text-white/80">
+                        Guests:{" "}
+                        {speakers.filter((s) => s.role === "guest").length}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-3 h-3 bg-white/10 border border-white/20 rounded"></div>
+                      <span className="text-white/80">
+                        Unassigned:{" "}
+                        {speakers.filter((s) => s.role === "unassigned").length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Cover Image */}
             <div>
               <label
@@ -435,44 +724,6 @@ export default function ScheduleForm({
                 ))}
               </select>
             </div>
-
-            {/* Specific Days Selection */}
-            {selectedPattern === "specific-days" && (
-              <div>
-                <label
-                  className="block text-white font-medium mb-3"
-                  style={{ fontFamily: "Inter, sans-serif" }}
-                >
-                  Select Days *
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {DAYS.map((day, index) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => handleDayToggle(index)}
-                      className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                        formData.selectedDays.includes(index)
-                          ? "bg-purple-500/20 border-purple-400/50 text-white"
-                          : "bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:border-white/30"
-                      }`}
-                    >
-                      <span
-                        className="text-sm font-medium"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        {day}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                {errors.selectedDays && (
-                  <p className="text-red-400 text-sm mt-2">
-                    {errors.selectedDays}
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Submit Button */}
             <div className="flex space-x-4 pt-4">
