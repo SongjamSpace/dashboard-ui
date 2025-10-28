@@ -1,9 +1,9 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PrivyProvider } from "@privy-io/react-auth";
+// import { PrivyProvider } from "@privy-io/react-auth";
 import { useState } from "react";
-import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
+// import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
