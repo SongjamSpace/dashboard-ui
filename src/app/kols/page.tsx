@@ -1,13 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, Clock, Mic, Plus, Settings } from "lucide-react";
 import ScheduleCalendar from "@/components/schedule-calendar";
 import ScheduleForm from "@/components/schedule-form";
 import RecurringPatternSelector from "@/components/recurring-pattern-selector";
 import SuccessNotification from "@/components/success-notification";
 import Navbar from "@/components/navbar";
+import UserShowCard from "@/components/user-show-card";
+import { useAuth } from "@/components/providers";
+import {
+  createScheduledShow,
+  getScheduledShowsByUser,
+} from "@/services/db/shows.db";
 
 interface ScheduledShow {
   id: string;
@@ -15,15 +21,19 @@ interface ScheduledShow {
   description: string;
   coverImage?: string;
   duration: number; // in minutes
-  day: number; // 0 = Sunday, 1 = Monday, etc.
-  time: string; // HH:MM format
-  pattern: "one-time" | "specific-days" | "weekdays" | "daily";
-  days?: number[]; // for specific-days pattern
-  startDate?: string; // for one-time shows
-  endDate?: string; // for recurring shows
+  schedule: {
+    date: string; // YYYY-MM-DD format
+    time: string; // HH:MM format
+  }[];
+  pricing?: {
+    price: number;
+    currency: string;
+    details?: string;
+  };
 }
 
 export default function KOLsPage() {
+  const { user, authenticated, twitterObj } = useAuth();
   const [selectedSlots, setSelectedSlots] = useState<
     { day: number; time: string }[]
   >([]);
@@ -34,6 +44,25 @@ export default function KOLsPage() {
   >("one-time");
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const fetchUserShows = async () => {
+    if (authenticated && user) {
+      try {
+        setLoading(true);
+        const shows = await getScheduledShowsByUser(user.uid);
+        setUserShows(shows.map((s) => ({ ...s, id: s.id || "" })));
+      } catch (error) {
+        console.error("Error loading user shows:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+  // Load user's shows from database
+  useEffect(() => {
+    fetchUserShows();
+  }, [authenticated, user]);
 
   const handleSlotSelect = (day: number, time: string) => {
     const slotKey = `${day}-${time}`;
@@ -50,44 +79,55 @@ export default function KOLsPage() {
     }
   };
 
-  const handleShowSubmit = (
-    showData: Omit<ScheduledShow, "id"> | Omit<ScheduledShow, "id">[]
-  ) => {
-    // Handle both single show and array of shows
-    if (Array.isArray(showData)) {
-      // Multiple shows (e.g., specific-days with multiple time slots)
-      const newShows: ScheduledShow[] = showData.map((show, index) => ({
-        ...show,
-        id: `${Date.now()}-${index}`,
-      }));
-      setUserShows((prev) => [...prev, ...newShows]);
-      setShowForm(false);
-      setSelectedSlots([]);
-      setSuccessMessage(
-        `"${showData[0].showName}" has been scheduled for ${
-          newShows.length
-        } time slot${newShows.length > 1 ? "s" : ""}!`
-      );
-      setShowSuccess(true);
-    } else {
-      // Single show
-      const newShow: ScheduledShow = {
-        ...showData,
-        id: Date.now().toString(),
-      };
-      setUserShows((prev) => [...prev, newShow]);
-      setShowForm(false);
-      setSelectedSlots([]);
-      setSuccessMessage(
-        `"${showData.showName}" has been scheduled successfully!`
-      );
-      setShowSuccess(true);
+  const handleShowSubmit = async (showData: Omit<ScheduledShow, "id">) => {
+    if (!authenticated || !user) {
+      console.error("User not authenticated");
+      return;
     }
 
-    // Auto-hide success notification after 3 seconds
-    setTimeout(() => {
-      setShowSuccess(false);
-    }, 3000);
+    try {
+      setLoading(true);
+
+      // Create user object for the database
+      const userObj = {
+        uid: user.uid,
+        username: twitterObj?.username || "",
+        name: twitterObj?.name || "",
+      };
+
+      // Create the show in the database
+      const showId = await createScheduledShow(showData as any, userObj as any);
+
+      // Add the new show to local state with the generated ID
+      const newShow: ScheduledShow = {
+        ...showData,
+        id: showId,
+      };
+      setUserShows((prev) => [...prev, newShow]);
+
+      setShowForm(false);
+      setSelectedSlots([]);
+      setSuccessMessage(
+        `"${showData.showName}" has been scheduled for ${
+          showData.schedule.length
+        } time slot${showData.schedule.length > 1 ? "s" : ""}!`
+      );
+      setShowSuccess(true);
+
+      // Auto-hide success notification after 3 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Error creating show:", error);
+      setSuccessMessage("Error creating show. Please try again.");
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const allShows = [...userShows];
@@ -162,55 +202,11 @@ export default function KOLsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {userShows.map((show) => (
-                  <motion.div
+                  <UserShowCard
                     key={show.id}
-                    className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden hover:bg-white/15 transition-all duration-200"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    {/* Cover Image Placeholder */}
-                    <div className="h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                      {show.coverImage ? (
-                        <img
-                          src={show.coverImage}
-                          alt={show.showName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Mic className="w-8 h-8 text-white/50" />
-                      )}
-                    </div>
-
-                    {/* Show Details */}
-                    <div className="p-4">
-                      <h4
-                        className="text-white font-semibold text-sm mb-1 truncate"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        {show.showName}
-                      </h4>
-                      <p
-                        className="text-white/60 text-xs mb-2 line-clamp-2"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        {show.description}
-                      </p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span
-                          className="text-white/70"
-                          style={{ fontFamily: "Inter, sans-serif" }}
-                        >
-                          {show.duration}min
-                        </span>
-                        <span
-                          className="text-purple-400 font-medium capitalize"
-                          style={{ fontFamily: "Inter, sans-serif" }}
-                        >
-                          {show.pattern.replace("-", " ")}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
+                    show={show}
+                    loadUserShows={fetchUserShows}
+                  />
                 ))}
               </div>
             )}

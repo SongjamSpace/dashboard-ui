@@ -18,13 +18,41 @@ import {
   Trash2,
   DollarSign,
 } from "lucide-react";
+import axios from "axios";
 
 interface Speaker {
-  id: string;
-  name: string;
-  handle: string;
-  avatar?: string;
+  userId: string;
+  displayName: string;
+  twitterScreenName: string; // without the leading @ in API, we'll render with @
+  avatarUrl?: string;
+  isVerified?: boolean;
+  admin?: boolean;
+  speaker?: boolean;
   role: "regular" | "guest" | "unassigned";
+}
+
+interface SpaceHistoryUser {
+  userId: string;
+  displayName: string;
+  twitterScreenName: string;
+  avatarUrl?: string;
+  isVerified?: boolean;
+  admin?: boolean;
+  speaker?: boolean;
+}
+
+interface SpaceHistoryMetadata {
+  title?: string;
+  mediaKey?: string;
+  startedAt?: number;
+  isSpaceAvailableForReplay?: boolean;
+  totalReplayWatched?: number;
+  totalLiveListeners?: number;
+  tweetId?: string;
+  admins?: SpaceHistoryUser[];
+  speakers?: SpaceHistoryUser[];
+  // allow additional fields returned by the API without forcing any casts
+  [key: string]: unknown;
 }
 
 interface PricingCard {
@@ -41,21 +69,21 @@ interface ScheduledShow {
   description: string;
   coverImage?: string;
   duration: number; // in minutes
-  day: number; // 0 = Sunday, 1 = Monday, etc.
-  time: string; // HH:MM format
-  pattern: "one-time" | "specific-days" | "weekdays" | "daily";
-  days?: number[]; // for specific-days pattern
+  schedule: {
+    date: string; // YYYY-MM-DD format
+    time: string; // HH:MM format
+  }[];
   speakers?: Speaker[];
+  participants?: Speaker[];
   pricingCards?: PricingCard[];
+  spaceHistoryMetadata?: SpaceHistoryMetadata;
 }
 
 interface ScheduleFormProps {
   selectedSlots: { day: number; time: string }[];
   selectedPattern: "one-time" | "specific-days" | "weekdays" | "daily";
   onClose: () => void;
-  onSubmit: (
-    showData: Omit<ScheduledShow, "id"> | Omit<ScheduledShow, "id">[]
-  ) => void;
+  onSubmit: (showData: Omit<ScheduledShow, "id">) => void;
 }
 
 const DURATION_OPTIONS = [
@@ -99,6 +127,10 @@ export default function ScheduleForm({
   const [isFetchingSpeakers, setIsFetchingSpeakers] = useState(false);
   const [fetchSuccess, setFetchSuccess] = useState(false);
   const [pricingCards, setPricingCards] = useState<PricingCard[]>([]);
+  const [speakersText, setSpeakersText] = useState("");
+  const [spaceHistoryMetadata, setSpaceHistoryMetadata] = useState<any | null>(
+    null
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (file: File) => {
@@ -177,6 +209,8 @@ export default function ScheduleForm({
 
   const fetchSpeakersFromUrl = async (url: string) => {
     if (!url.trim()) return;
+    const spaceId = url.split("/").pop();
+    if (!spaceId) return;
 
     setIsFetchingSpeakers(true);
     setErrors((prev) => {
@@ -185,35 +219,80 @@ export default function ScheduleForm({
     });
 
     try {
-      // Simulate API call - In a real app, this would fetch from Twitter Spaces API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // // Simulate API call - In a real app, this would fetch from Twitter Spaces API
+      // await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Mock data - simulating fetched speakers
-      const mockSpeakers: Speaker[] = [
-        {
-          id: "1",
-          name: "John Smith",
-          handle: "@johnsmith",
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=john`,
-          role: "unassigned",
-        },
-        {
-          id: "2",
-          name: "Sarah Wilson",
-          handle: "@sarahw",
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=sarah`,
-          role: "unassigned",
-        },
-        {
-          id: "3",
-          name: "Mike Chen",
-          handle: "@mikechen",
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=mike`,
-          role: "unassigned",
-        },
-      ];
+      // // Mock data - simulating fetched speakers
+      // const mockSpeakers: Speaker[] = [
+      //   {
+      //     id: "1",
+      //     name: "John Smith",
+      //     handle: "@johnsmith",
+      //     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=john`,
+      //     role: "unassigned",
+      //   },
+      //   {
+      //     id: "2",
+      //     name: "Sarah Wilson",
+      //     handle: "@sarahw",
+      //     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=sarah`,
+      //     role: "unassigned",
+      //   },
+      //   {
+      //     id: "3",
+      //     name: "Mike Chen",
+      //     handle: "@mikechen",
+      //     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=mike`,
+      //     role: "unassigned",
+      //   },
+      // ];
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_SONGJAM_SERVER}/space/details?spaceId=${spaceId}`
+      );
+      if (response.status !== 200) {
+        setErrors((prev) => ({
+          ...prev,
+          previousSpaceUrl: "Failed to fetch speakers from this URL",
+        }));
+        return;
+      }
+      const data = response.data;
+      if (!data?.success || !data?.result) {
+        setErrors((prev) => ({
+          ...prev,
+          previousSpaceUrl: "Failed to fetch speakers from this URL",
+        }));
+        return;
+      }
 
-      setSpeakers(mockSpeakers);
+      const result = data.result;
+      setSpaceHistoryMetadata(result);
+
+      const admins = Array.isArray(result.admins) ? result.admins : [];
+      const fetchedSpeakers = Array.isArray(result.speakers)
+        ? result.speakers
+        : [];
+
+      const combinedUsers = [...admins, ...fetchedSpeakers];
+      const uniqueByUserId = new Map<string, any>();
+      combinedUsers.forEach((u: any) => {
+        if (u?.userId) uniqueByUserId.set(String(u.userId), u);
+      });
+
+      const apiSpeakers: Speaker[] = Array.from(uniqueByUserId.values()).map(
+        (u: any) => ({
+          userId: String(u.userId ?? ""),
+          displayName: String(u.displayName ?? ""),
+          twitterScreenName: String(u.twitterScreenName ?? ""),
+          avatarUrl: u.avatarUrl || undefined,
+          isVerified: Boolean(u.isVerified),
+          admin: Boolean(u.admin),
+          speaker: Boolean(u.speaker),
+          role: "regular",
+        })
+      );
+
+      setSpeakers(apiSpeakers);
       setFetchSuccess(true);
       setTimeout(() => setFetchSuccess(false), 2000);
     } catch (error) {
@@ -232,7 +311,7 @@ export default function ScheduleForm({
   ) => {
     setSpeakers((prev) =>
       prev.map((speaker) =>
-        speaker.id === speakerId ? { ...speaker, role } : speaker
+        speaker.userId === speakerId ? { ...speaker, role } : speaker
       )
     );
   };
@@ -240,6 +319,40 @@ export default function ScheduleForm({
   const clearSpeakers = () => {
     setSpeakers([]);
     setFormData((prev) => ({ ...prev, previousSpaceUrl: "" }));
+  };
+
+  const handleSpeakersTextChange = (text: string) => {
+    setSpeakersText(text);
+  };
+
+  const addSpeakerFromInput = (rawValue: string) => {
+    const trimmed = rawValue.trim();
+    if (!trimmed) return;
+
+    const cleanUsername = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+    const handle = `@${cleanUsername}`;
+
+    const exists = speakers.some(
+      (s) => `@${s.twitterScreenName}`.toLowerCase() === handle.toLowerCase()
+    );
+    if (exists) {
+      setSpeakersText("");
+      return;
+    }
+
+    const newSpeaker: Speaker = {
+      userId: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      displayName: "",
+      twitterScreenName: cleanUsername,
+      avatarUrl: undefined,
+      isVerified: false,
+      admin: false,
+      speaker: true,
+      role: "regular",
+    };
+
+    setSpeakers((prev) => [...prev, newSpeaker]);
+    setSpeakersText("");
   };
 
   const addPricingCard = () => {
@@ -368,11 +481,20 @@ export default function ScheduleForm({
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Extract unique days from selectedSlots for specific-days pattern
-    const selectedDaysFromSlots =
-      selectedPattern === "specific-days"
-        ? Array.from(new Set(selectedSlots.map((slot) => slot.day))).sort()
-        : undefined;
+    // Convert selectedSlots to schedule format
+    const schedule = selectedSlots.map((slot) => {
+      // Convert day number to actual date
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const daysUntilTarget = (slot.day - dayOfWeek + 7) % 7;
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysUntilTarget);
+
+      return {
+        date: targetDate.toISOString().split("T")[0], // YYYY-MM-DD format
+        time: slot.time,
+      };
+    });
 
     // Group selected slots by day and time for better handling
     const baseShowData = {
@@ -380,51 +502,25 @@ export default function ScheduleForm({
       description: formData.description,
       coverImage: formData.coverImage,
       duration: formData.duration,
-      pattern: selectedPattern,
-      days: selectedDaysFromSlots,
-      speakers: speakers.length > 0 ? speakers : undefined,
+      schedule,
+      participants: speakers.length > 0 ? speakers : [],
       pricingCards:
         pricingCards.length > 0
           ? pricingCards.filter(
               (card) =>
                 card.label.trim() && card.description.trim() && card.pricing > 0
             )
-          : undefined,
+          : [],
+      spaceHistoryMetadata: spaceHistoryMetadata ?? {},
     };
 
-    // For patterns that support multiple time slots, create separate show instances
-    if (
-      selectedSlots.length > 1 &&
-      (selectedPattern === "specific-days" || selectedPattern === "one-time")
-    ) {
-      // Create separate show for each selected slot
-      const showsData = selectedSlots.map((slot) => ({
-        ...baseShowData,
-        day: slot.day,
-        time: slot.time,
-      }));
+    // Always create a single show with all selected slots
+    const showData: Omit<ScheduledShow, "id"> = baseShowData;
 
-      setShowSuccess(true);
-      setTimeout(() => {
-        onSubmit(showsData);
-        setIsSubmitting(false);
-        setShowSuccess(false);
-      }, 1500);
-    } else {
-      // Single show instance for other patterns
-      const showData: Omit<ScheduledShow, "id"> = {
-        ...baseShowData,
-        day: selectedSlots[0]?.day || 0,
-        time: selectedSlots[0]?.time || "09:00",
-      };
-
-      setShowSuccess(true);
-      setTimeout(() => {
-        onSubmit(showData);
-        setIsSubmitting(false);
-        setShowSuccess(false);
-      }, 1500);
-    }
+    setShowSuccess(true);
+    await onSubmit(showData);
+    setIsSubmitting(false);
+    setShowSuccess(false);
   };
 
   const handleDayToggle = (day: number) => {
@@ -631,7 +727,7 @@ export default function ScheduleForm({
                 className="block text-white font-medium mb-2"
                 style={{ fontFamily: "Inter, sans-serif" }}
               >
-                Previous Space URL
+                Add Speakers
               </label>
               <p
                 className="text-white/60 text-sm mb-3"
@@ -651,7 +747,7 @@ export default function ScheduleForm({
                     }))
                   }
                   className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50"
-                  placeholder="https://twitter.com/i/spaces/..."
+                  placeholder="https://x.com/i/spaces/..."
                   style={{ fontFamily: "Inter, sans-serif" }}
                 />
                 <button
@@ -722,20 +818,26 @@ export default function ScheduleForm({
                 <div className="space-y-3 max-h-60 overflow-y-auto">
                   {speakers.map((speaker) => (
                     <div
-                      key={speaker.id}
+                      key={speaker.userId}
                       className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg"
                     >
                       <div className="flex items-center space-x-3">
-                        {speaker.avatar ? (
+                        {speaker.avatarUrl ? (
                           <img
-                            src={speaker.avatar}
-                            alt={speaker.name}
+                            src={speaker.avatarUrl}
+                            alt={speaker.displayName}
                             className="w-10 h-10 rounded-full bg-purple-500/20"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
                             <span className="text-purple-300 text-sm font-medium">
-                              {speaker.name.charAt(0).toUpperCase()}
+                              {(
+                                speaker.displayName ||
+                                speaker.twitterScreenName ||
+                                "?"
+                              )
+                                .charAt(0)
+                                .toUpperCase()}
                             </span>
                           </div>
                         )}
@@ -744,13 +846,15 @@ export default function ScheduleForm({
                             className="text-white font-medium"
                             style={{ fontFamily: "Inter, sans-serif" }}
                           >
-                            {speaker.name}
+                            {speaker.displayName}
                           </p>
                           <p
                             className="text-white/60 text-sm"
                             style={{ fontFamily: "Inter, sans-serif" }}
                           >
-                            {speaker.handle}
+                            {speaker.twitterScreenName
+                              ? `@${speaker.twitterScreenName}`
+                              : ""}
                           </p>
                         </div>
                       </div>
@@ -758,7 +862,7 @@ export default function ScheduleForm({
                         <button
                           type="button"
                           onClick={() =>
-                            handleSpeakerRoleChange(speaker.id, "regular")
+                            handleSpeakerRoleChange(speaker.userId, "regular")
                           }
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                             speaker.role === "regular"
@@ -775,7 +879,7 @@ export default function ScheduleForm({
                         <button
                           type="button"
                           onClick={() =>
-                            handleSpeakerRoleChange(speaker.id, "guest")
+                            handleSpeakerRoleChange(speaker.userId, "guest")
                           }
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                             speaker.role === "guest"

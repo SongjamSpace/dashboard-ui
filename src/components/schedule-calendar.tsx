@@ -1,20 +1,7 @@
 "use client";
 
+import { ScheduledShow } from "@/services/db/shows.db";
 import { motion } from "framer-motion";
-
-interface ScheduledShow {
-  id: string;
-  showName: string;
-  description: string;
-  coverImage?: string;
-  duration: number; // in minutes
-  day: number; // 0 = Sunday, 1 = Monday, etc.
-  time: string; // HH:MM format
-  pattern: "one-time" | "specific-days" | "weekdays" | "daily";
-  days?: number[]; // for specific-days pattern
-  startDate?: string; // for one-time shows
-  endDate?: string; // for recurring shows
-}
 
 interface ScheduleCalendarProps {
   scheduledShows: ScheduledShow[];
@@ -24,7 +11,7 @@ interface ScheduleCalendarProps {
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6 AM to 11 PM
+const HOURS = Array.from({ length: 24 }, (_, i) => i); // 12 AM to 11 PM (0-23)
 const TIME_SLOTS = HOURS.flatMap((hour) => [
   `${hour.toString().padStart(2, "0")}:00`,
   `${hour.toString().padStart(2, "0")}:30`,
@@ -59,23 +46,18 @@ const isTimeSlotOccupiedByShow = (
   day: number,
   time: string
 ): boolean => {
-  const shouldCheckDay = () => {
-    if (show.pattern === "one-time") {
-      return show.day === day;
-    } else if (show.pattern === "weekdays") {
-      return show.day === day && day >= 1 && day <= 5;
-    } else if (show.pattern === "daily") {
-      return show.day === day;
-    } else if (show.pattern === "specific-days") {
-      return show.days?.includes(day) || false;
-    }
-    return false;
-  };
+  // Check if any schedule entry matches the current day and time
+  return show.schedule.some((scheduleItem) => {
+    const scheduleDate = new Date(scheduleItem.date);
+    const scheduleDay = scheduleDate.getDay();
 
-  if (!shouldCheckDay()) return false;
+    // Check if the day matches
+    if (scheduleDay !== day) return false;
 
-  const occupiedSlots = getShowTimeSlots(show.time, show.duration);
-  return occupiedSlots.includes(time);
+    // Check if the time slot is occupied by this show
+    const occupiedSlots = getShowTimeSlots(scheduleItem.time, show.duration);
+    return occupiedSlots.includes(time);
+  });
 };
 
 // Helper function to check if this is the first slot of a show (where details should be displayed)
@@ -84,20 +66,13 @@ const isFirstSlotOfShow = (
   day: number,
   time: string
 ): boolean => {
-  const shouldCheckDay = () => {
-    if (show.pattern === "one-time") {
-      return show.day === day;
-    } else if (show.pattern === "weekdays") {
-      return show.day === day && day >= 1 && day <= 5;
-    } else if (show.pattern === "daily") {
-      return show.day === day;
-    } else if (show.pattern === "specific-days") {
-      return show.days?.includes(day) || false;
-    }
-    return false;
-  };
+  // Check if any schedule entry matches the current day and time exactly
+  return show.schedule.some((scheduleItem) => {
+    const scheduleDate = new Date(scheduleItem.date);
+    const scheduleDay = scheduleDate.getDay();
 
-  return shouldCheckDay() && show.time === time;
+    return scheduleDay === day && scheduleItem.time === time;
+  });
 };
 
 // Helper function to calculate how many slots a show spans
@@ -152,6 +127,7 @@ export default function ScheduleCalendar({
   selectedPattern,
   onSlotSelect,
 }: ScheduleCalendarProps) {
+  console.log({ scheduledShows });
   const isSlotOccupied = (day: number, time: string) => {
     return scheduledShows.some((show) => {
       return isTimeSlotOccupiedByShow(show, day, time);
@@ -201,34 +177,43 @@ export default function ScheduleCalendar({
 
   return (
     <div className="p-4 md:p-6">
-      {/* Calendar Container with Horizontal Scroll */}
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
-          {/* Calendar Header */}
-          <div className="grid grid-cols-8 gap-1 mb-4">
-            <div
-              className="text-center text-white/60 text-sm font-medium min-w-[80px]"
-              style={{ fontFamily: "Inter, sans-serif" }}
-            >
-              Time
-            </div>
-            {DAYS.map((day, index) => (
+      {/* Calendar Container with Horizontal and Vertical Scroll */}
+      <div className="overflow-auto max-h-[80vh] relative">
+        <div className="min-w-[1000px]">
+          {/* Calendar Header - Sticky */}
+          <div className="sticky top-0 z-20">
+            <div className="grid grid-cols-8 gap-1 mb-4">
               <div
-                key={day}
-                className="text-center text-white font-medium text-sm p-2 min-w-[100px]"
-                style={{ fontFamily: "Inter, sans-serif" }}
-              >
-                {day}
-              </div>
-            ))}
+                className="text-center text-white/60 text-sm font-medium min-w-[125px] sticky left-0 z-30"
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  backgroundColor: "#2C2B2C",
+                }}
+              ></div>
+              {DAYS.map((day, index) => (
+                <div
+                  key={day}
+                  className="text-center text-white font-medium text-sm p-2 min-w-[125px]"
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    backgroundColor: "#2C2B2C",
+                  }}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Calendar Grid */}
-          <div className="space-y-1">
+          <div className="">
             {TIME_SLOTS.map((time, timeIndex) => (
               <div key={time} className="relative grid grid-cols-8 gap-1">
-                {/* Time Label */}
-                <div className="flex items-center justify-center h-10 md:h-12 min-w-[80px]">
+                {/* Time Label - Sticky */}
+                <div
+                  className="flex items-center justify-center h-10 md:h-12 min-w-[125px] sticky left-0 z-10"
+                  style={{ backgroundColor: "#2C2B2C" }}
+                >
                   <span
                     className="text-white/60 text-xs font-medium"
                     style={{ fontFamily: "Inter, sans-serif" }}
@@ -260,13 +245,13 @@ export default function ScheduleCalendar({
                     return (
                       <div
                         key={`${dayIndex}-${time}`}
-                        className="h-10 md:h-12 min-w-[100px] relative"
+                        className="h-10 md:h-12 min-w-[125px] relative"
                       >
                         {/* Only render the merged block on the first slot */}
                         {mergedBlock && (
                           <motion.div
                             key={`${dayIndex}-${time}-merged`}
-                            className="absolute top-0 left-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-2 border-indigo-400/40 rounded-lg transition-all duration-200 z-20"
+                            className="absolute top-0 left-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border-2 border-indigo-400/40 rounded-lg transition-all duration-200 z-1"
                             style={{
                               height: `${
                                 44 * mergedBlock.span +
@@ -298,7 +283,7 @@ export default function ScheduleCalendar({
                     return (
                       <motion.div
                         key={`${dayIndex}-${time}`}
-                        className="h-10 md:h-12 rounded-lg border-2 transition-all duration-200 min-w-[100px] bg-white/10 border-white/20"
+                        className="h-10 md:h-12 rounded-lg border-2 transition-all duration-200 min-w-[125px] bg-white/10 border-white/20"
                         whileHover={{ scale: 1 }}
                       >
                         <div className="p-2 h-full flex items-center justify-center">
@@ -317,7 +302,7 @@ export default function ScheduleCalendar({
                   return (
                     <motion.div
                       key={`${dayIndex}-${time}`}
-                      className={`h-10 md:h-12 rounded-lg border-2 transition-all duration-200 cursor-pointer min-w-[100px] ${
+                      className={`h-10 md:h-12 rounded-lg border-2 transition-all duration-200 cursor-pointer min-w-[125px] ${
                         isConflict
                           ? "bg-red-500/20 border-red-400/50"
                           : isSelected

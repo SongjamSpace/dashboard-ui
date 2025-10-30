@@ -17,6 +17,11 @@ interface AuthContextType {
   ready: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
+  twitterObj: {
+    twitterId: string | undefined;
+    name: string | null | undefined;
+    username: any;
+  } | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,6 +68,17 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const extractTwitterProps = () => {
+    if (!user) return null;
+    const twitterInfo = user.providerData.find(
+      (p) => p.providerId === "twitter.com"
+    );
+    const twitterId = twitterInfo?.uid;
+    const name = twitterInfo?.displayName;
+    const username = (user as any)?.reloadUserInfo.screenName || "";
+    return { twitterId, name, username };
+  };
+
   const value: AuthContextType = {
     user,
     loading,
@@ -70,6 +86,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     ready: !loading,
     login: handleTwitterLogin,
     logout: handleLogout,
+    twitterObj: extractTwitterProps(),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
