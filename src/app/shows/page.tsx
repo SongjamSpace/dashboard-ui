@@ -370,8 +370,9 @@ export default function ShowsPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
-                    whileHover={{ scale: 1.02, y: -5 }}
+                    // whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={() => handleShowSelect(show)}
                   >
                     {/* Cover Image */}
                     <div className="h-64 bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center relative overflow-hidden">
@@ -408,7 +409,7 @@ export default function ShowsPage() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm rounded-full px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <span className="text-white text-xs font-medium">
-                          View Analytics
+                          View Show
                         </span>
                       </div>
                     </div>

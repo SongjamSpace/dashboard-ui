@@ -19,6 +19,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import axios from "axios";
+import { PricingCard, ScheduledShow } from "@/services/db/shows.db";
 
 interface Speaker {
   userId: string;
@@ -55,35 +56,11 @@ interface SpaceHistoryMetadata {
   [key: string]: unknown;
 }
 
-interface PricingCard {
-  id: string;
-  label: string;
-  description: string;
-  pricing: number;
-  includedServices: string[];
-}
-
-interface ScheduledShow {
-  id: string;
-  showName: string;
-  description: string;
-  coverImage?: string;
-  duration: number; // in minutes
-  schedule: {
-    date: string; // YYYY-MM-DD format
-    time: string; // HH:MM format
-  }[];
-  speakers?: Speaker[];
-  participants?: Speaker[];
-  pricingCards?: PricingCard[];
-  spaceHistoryMetadata?: SpaceHistoryMetadata;
-}
-
 interface ScheduleFormProps {
   selectedSlots: { day: number; time: string }[];
   selectedPattern: "one-time" | "specific-days" | "weekdays" | "daily";
   onClose: () => void;
-  onSubmit: (showData: Omit<ScheduledShow, "id">) => void;
+  onSubmit: (showData: ScheduledShow) => void;
 }
 
 const DURATION_OPTIONS = [
@@ -127,6 +104,7 @@ export default function ScheduleForm({
   const [isFetchingSpeakers, setIsFetchingSpeakers] = useState(false);
   const [fetchSuccess, setFetchSuccess] = useState(false);
   const [pricingCards, setPricingCards] = useState<PricingCard[]>([]);
+  const [payoutAddress, setPayoutAddress] = useState("");
   const [speakersText, setSpeakersText] = useState("");
   const [spaceHistoryMetadata, setSpaceHistoryMetadata] = useState<any | null>(
     null
@@ -213,6 +191,7 @@ export default function ScheduleForm({
     if (!spaceId) return;
 
     setIsFetchingSpeakers(true);
+    setFetchSuccess(false);
     setErrors((prev) => {
       const { previousSpaceUrl, ...rest } = prev;
       return rest;
@@ -294,7 +273,6 @@ export default function ScheduleForm({
 
       setSpeakers(apiSpeakers);
       setFetchSuccess(true);
-      setTimeout(() => setFetchSuccess(false), 2000);
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
@@ -511,6 +489,7 @@ export default function ScheduleForm({
                 card.label.trim() && card.description.trim() && card.pricing > 0
             )
           : [],
+      payoutAddress: payoutAddress.trim() || "",
       spaceHistoryMetadata: spaceHistoryMetadata ?? {},
     };
 
@@ -1219,6 +1198,31 @@ export default function ScheduleForm({
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {pricingCards.length > 0 && (
+                <div className="mt-4">
+                  <label
+                    className="block text-white/90 text-sm font-medium mb-1"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    Payout Address
+                  </label>
+                  <input
+                    type="text"
+                    value={payoutAddress}
+                    onChange={(e) => setPayoutAddress(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-400/50 text-sm"
+                    placeholder="Enter payout address (0x...)"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  />
+                  <p
+                    className="text-white/40 text-xs mt-1"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    This address is for the Ethereum network.
+                  </p>
                 </div>
               )}
 

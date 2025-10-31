@@ -12,6 +12,7 @@ import {
   Repeat2,
   BarChart3,
   TrendingUp,
+  Crown,
 } from "lucide-react";
 import type { ParticipantProfile, ScheduledShow } from "@/services/db/shows.db";
 import PricingCards from "@/components/pricing-cards";
@@ -84,6 +85,16 @@ export default function ShowDetails({
   onBack,
   onBookTier,
 }: ShowDetailsProps) {
+  const normalizeHandle = (value?: string): string =>
+    (value || "").replace(/^@/, "").trim().toLowerCase();
+
+  const creatorHandles = new Set<string>(
+    [
+      normalizeHandle((show.createdBy as any)?.username),
+      normalizeHandle((show.createdBy as any)?.twitterScreenName),
+      normalizeHandle(show.createdBy?.displayName),
+    ].filter(Boolean) as string[]
+  );
   return (
     <motion.div
       key="show-analytics"
@@ -202,10 +213,21 @@ export default function ShowDetails({
                   const avatarSrc = profile.avatarUrl;
                   const displayName = profile.displayName;
                   const username = profile.twitterScreenName;
+                  const isCreator =
+                    creatorHandles.size > 0 &&
+                    (creatorHandles.has(normalizeHandle(username)) ||
+                      creatorHandles.has(normalizeHandle(displayName)));
                   return (
                     <div
                       key={index}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/5 hover:bg-white/10 transition-colors text-white/90 flex-shrink-0"
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors text-white/90 flex-shrink-0 cursor-pointer ${
+                        isCreator
+                          ? "border-yellow-300/80 bg-yellow-500/10 hover:bg-yellow-500/15 shadow-[0_0_0_2px_rgba(234,179,8,0.2)]"
+                          : "border-white/20 bg-white/5 hover:bg-white/10"
+                      }`}
+                      onClick={() =>
+                        window.open(`https://x.com/${username}`, "_blank")
+                      }
                     >
                       {avatarSrc ? (
                         <img
@@ -215,20 +237,30 @@ export default function ShowDetails({
                             username ||
                             `Participant ${index + 1}`
                           }
-                          className="w-6 h-6 rounded-full border border-white/20 object-cover"
+                          className={`w-6 h-6 rounded-full border object-cover ${
+                            isCreator
+                              ? "border-yellow-300/80 ring-2 ring-yellow-300/40"
+                              : "border-white/20"
+                          }`}
                         />
                       ) : (
-                        <div className="w-6 h-6 rounded-full border border-white/20 bg-white/10" />
+                        <div
+                          className={`w-6 h-6 rounded-full border bg-white/10 ${
+                            isCreator
+                              ? "border-yellow-300/80 ring-2 ring-yellow-300/40"
+                              : "border-white/20"
+                          }`}
+                        />
                       )}
                       <div className="flex items-center gap-2">
+                        {isCreator && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-300/30">
+                            <Crown className="w-3 h-3" /> Host
+                          </span>
+                        )}
                         {displayName && (
                           <span className="text-sm font-medium text-white">
                             {displayName}
-                          </span>
-                        )}
-                        {username && (
-                          <span className="text-xs text-white/70">
-                            @{username.replace(/^@/, "")}
                           </span>
                         )}
                       </div>

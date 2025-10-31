@@ -101,7 +101,13 @@ export interface ParticipantProfile {
   twitterScreenName?: string; // handle without @
   userId: string;
 }
-
+export interface PricingCard {
+  id: string;
+  label: string;
+  description: string;
+  pricing: number;
+  includedServices: string[];
+}
 // ScheduledShow interface based on the structure from components
 export interface ScheduledShow {
   id?: string;
@@ -118,12 +124,8 @@ export interface ScheduledShow {
     avatar?: string;
     role: "regular" | "guest" | "unassigned";
   }[];
-  pricingCards?: {
-    title: string;
-    description: string;
-    pricing: number;
-    includedServices: string[];
-  }[];
+  pricingCards?: PricingCard[];
+  payoutAddress?: string;
   pricing?: {
     price: number;
     currency: string;

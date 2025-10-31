@@ -4,24 +4,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { Mic, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { Trash } from "lucide-react";
-import { deleteShow } from "@/services/db/shows.db";
-
-interface ScheduledShow {
-  id: string;
-  showName: string;
-  description: string;
-  coverImage?: string;
-  duration: number; // in minutes
-  schedule: {
-    date: string; // YYYY-MM-DD format
-    time: string; // HH:MM format
-  }[];
-  pricing?: {
-    price: number;
-    currency: string;
-    details?: string;
-  };
-}
+import { deleteShow, ScheduledShow } from "@/services/db/shows.db";
 
 interface UserShowCardProps {
   show: ScheduledShow;
@@ -35,32 +18,16 @@ export default function UserShowCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPricingPopup, setShowPricingPopup] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const getLocalDateFromUtcStrings = (
-    dateString: string,
-    timeString: string
-  ) => {
-    const [y, m, d] = dateString.split("-").map((v) => parseInt(v, 10));
-    const [hh, mm] = timeString.split(":").map((v) => parseInt(v, 10));
-    // Construct a Date from UTC components, then let JS convert to local time
-    return new Date(Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0));
-  };
-
-  const formatLocalDate = (dateString: string, timeString: string) => {
-    const localDate = getLocalDateFromUtcStrings(dateString, timeString);
-    return localDate.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const formatLocalTime = (dateString: string, timeString: string) => {
-    const localDate = getLocalDateFromUtcStrings(dateString, timeString);
-    return localDate.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  // Display schedule date and time as provided in props without timezone conversion.
+  const formatTime12Hour = (timeString: string) => {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(timeString);
+    if (!match) return timeString;
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2];
+    const period = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${hours}:${minutes} ${period}`;
   };
 
   const handleDelete = async () => {
@@ -164,13 +131,13 @@ export default function UserShowCard({
                       className="text-white/70"
                       style={{ fontFamily: "Inter, sans-serif" }}
                     >
-                      {formatLocalDate(schedule.date, schedule.time)}
+                      {schedule.date}
                     </span>
                     <span
                       className="text-white/70"
                       style={{ fontFamily: "Inter, sans-serif" }}
                     >
-                      {formatLocalTime(schedule.date, schedule.time)}
+                      {formatTime12Hour(schedule.time)}
                     </span>
                   </div>
                 ))}

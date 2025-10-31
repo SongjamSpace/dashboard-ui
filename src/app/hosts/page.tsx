@@ -13,24 +13,8 @@ import { useAuth } from "@/components/providers";
 import {
   createScheduledShow,
   getScheduledShowsByUser,
+  ScheduledShow,
 } from "@/services/db/shows.db";
-
-interface ScheduledShow {
-  id: string;
-  showName: string;
-  description: string;
-  coverImage?: string;
-  duration: number; // in minutes
-  schedule: {
-    date: string; // YYYY-MM-DD format
-    time: string; // HH:MM format
-  }[];
-  pricing?: {
-    price: number;
-    currency: string;
-    details?: string;
-  };
-}
 
 export default function KOLsPage() {
   const { user, authenticated, twitterObj } = useAuth();
@@ -79,9 +63,16 @@ export default function KOLsPage() {
     }
   };
 
-  const handleShowSubmit = async (showData: Omit<ScheduledShow, "id">) => {
+  const handleShowSubmit = async (showData: ScheduledShow) => {
     if (!authenticated || !user) {
       console.error("User not authenticated");
+      return;
+    }
+    const admin = showData.participants
+      ?.filter((p) => p.admin)
+      .find((p) => p.twitterScreenName === twitterObj?.username);
+    if (!admin) {
+      alert("You are not an admin of the submitted space");
       return;
     }
 
@@ -93,6 +84,8 @@ export default function KOLsPage() {
         uid: user.uid,
         username: twitterObj?.username || "",
         name: twitterObj?.name || "",
+        photoUrl: user.photoURL || "",
+        twitterId: twitterObj?.twitterId || "",
       };
 
       // Create the show in the database

@@ -42,9 +42,9 @@ export default function PricingCards({ show, onBook }: PricingCardsProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {cards.map((card, idx) => (
           <motion.div
-            key={`${card.title}-${idx}`}
+            key={`${card.label}-${idx}`}
             className={
-              "rounded-xl p-5 border transition-all duration-300 bg-white/5 border-white/20"
+              "rounded-xl p-5 border transition-all duration-300 bg-white/5 border-white/20 flex flex-col h-full"
             }
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -57,7 +57,7 @@ export default function PricingCards({ show, onBook }: PricingCardsProps) {
                   className="text-lg font-semibold text-white"
                   style={{ fontFamily: "Orbitron, sans-serif" }}
                 >
-                  {card.title}
+                  {card.label}
                 </h4>
                 {card.description && (
                   <p className="text-white/70 text-xs">{card.description}</p>
@@ -84,11 +84,11 @@ export default function PricingCards({ show, onBook }: PricingCardsProps) {
               )}
 
             <motion.button
-              className="w-full flex items-center justify-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-200 bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
+              className="w-full mt-auto flex items-center justify-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-200 bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
               style={{ fontFamily: "Inter, sans-serif" }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => handleBook(card.title)}
+              onClick={() => handleBook(card.label)}
             >
               <Calendar className="w-4 h-4" /> Book
             </motion.button>
@@ -98,5 +98,3 @@ export default function PricingCards({ show, onBook }: PricingCardsProps) {
     </div>
   );
 }
-
-

@@ -45,15 +45,15 @@ export default function Navbar({ inverse }: { inverse?: boolean }) {
             variant="ghost"
             className={inverse ? "text-[#48333D] hover:text-[#48333D]/60" : ""}
           >
-            SHOWS
+            Shows
           </Button>
         </Link>
-        <Link href="/kols">
+        <Link href="/hosts">
           <Button
             variant="ghost"
             className={inverse ? "text-[#48333D] hover:text-[#48333D]/60" : ""}
           >
-            KOLS
+            Hosts
           </Button>
         </Link>
       </div>
