@@ -31,6 +31,30 @@ export default function Hosts() {
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  async function fetchUserShows() {
+    if (!authenticated || !user) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const shows = await getScheduledShowsByUser(user.uid);
+      setUserShows(shows.map((s) => ({ ...s, id: s.id || "" })));
+    } catch (error) {
+      console.error("Error loading user shows:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!authenticated || !user) {
+      return;
+    }
+
+    fetchUserShows();
+  }, [authenticated, user]);
+
   if (!ready) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)] flex items-center justify-center">
@@ -42,24 +66,6 @@ export default function Hosts() {
   if (!authenticated) {
     return <LoginScreen login={login} />;
   }
-
-  const fetchUserShows = async () => {
-    if (authenticated && user) {
-      try {
-        setLoading(true);
-        const shows = await getScheduledShowsByUser(user.uid);
-        setUserShows(shows.map((s) => ({ ...s, id: s.id || "" })));
-      } catch (error) {
-        console.error("Error loading user shows:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-  // Load user's shows from database
-  useEffect(() => {
-    fetchUserShows();
-  }, [authenticated, user]);
 
   const handleSlotSelect = (day: number, time: string) => {
     const slotKey = `${day}-${time}`;

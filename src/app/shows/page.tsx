@@ -570,7 +570,7 @@ export default function ShowsPage() {
                 {[...dbShows].map((show, index) => (
                   <motion.div
                     key={show.id!}
-                    className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden hover:bg-white/15 transition-all duration-300 cursor-pointer group"
+                    className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden hover:bg-white/15 transition-all duration-300 cursor-pointer group flex flex-col"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -619,7 +619,7 @@ export default function ShowsPage() {
                     </div>
 
                     {/* Show Details */}
-                    <div className="p-6">
+                    <div className="p-6 flex-1 flex flex-col">
                       <h3
                         className="text-white font-bold text-xl mb-3 line-clamp-2"
                         style={{ fontFamily: "Orbitron, sans-serif" }}
@@ -633,7 +633,7 @@ export default function ShowsPage() {
                         {show.description}
                       </p>
 
-                      <div className="space-y-3">
+                      <div className="space-y-3 mt-auto">
                         <div className="flex items-center text-white/80 text-sm">
                           <Clock className="w-4 h-4 mr-2 text-purple-400" />
                           <span>{show.duration} minutes</span>

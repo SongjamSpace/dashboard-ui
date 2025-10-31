@@ -294,6 +294,12 @@ export default function ScheduleForm({
     );
   };
 
+  const handleRemoveSpeaker = (speakerId: string) => {
+    setSpeakers((prev) =>
+      prev.filter((speaker) => speaker.userId !== speakerId)
+    );
+  };
+
   const clearSpeakers = () => {
     setSpeakers([]);
     setFormData((prev) => ({ ...prev, previousSpaceUrl: "" }));
@@ -871,6 +877,17 @@ export default function ScheduleForm({
                             <UserX className="w-3.5 h-3.5" />
                             <span>Guest</span>
                           </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSpeaker(speaker.userId)}
+                          className="p-2 rounded-lg text-sm font-medium transition-all bg-white/5 border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/40 hover:text-red-200"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                          aria-label={`Remove ${
+                            speaker.displayName || "speaker"
+                          }`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
