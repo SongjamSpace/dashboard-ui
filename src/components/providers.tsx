@@ -9,6 +9,8 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "@/services/firebase.service";
+import { PrivyProvider } from "@privy-io/react-auth";
+import { mainnet } from "viem/chains";
 
 interface AuthContextType {
   user: User | null;
@@ -92,12 +94,49 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+function PrivyProviderWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID as string}
+      config={{
+        defaultChain: mainnet,
+        appearance: {
+          accentColor: "#6A6FF5",
+          theme: "#FFFFFF",
+          showWalletLoginFirst: false,
+          logo: "https://auth.privy.io/logos/privy-logo.png",
+          walletChainType: "ethereum-only",
+          walletList: [
+            "detected_wallets",
+            "metamask",
+            "okx_wallet",
+            "phantom",
+            "coinbase_wallet",
+            "base_account",
+            "rainbow",
+            "solflare",
+            "backpack",
+            "wallet_connect",
+            "uniswap",
+          ],
+        },
+      }}
+    >
+      {children}
+    </PrivyProvider>
+  );
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <PrivyProviderWrapper>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </PrivyProviderWrapper>
     </AuthProvider>
   );
 }

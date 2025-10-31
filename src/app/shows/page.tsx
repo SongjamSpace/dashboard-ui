@@ -1,7 +1,12 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ConnectedWallet,
+  useConnectWallet,
+  useWallets,
+} from "@privy-io/react-auth";
 import {
   ArrowLeft,
   Calendar,
@@ -26,6 +31,10 @@ import {
   createShowBooking,
   getShowBooking,
 } from "@/services/db/showBookings.db";
+import { sendUsdtPayment } from "@/lib/usdt-payment";
+
+const WALLET_CONNECTION_POLL_MS = 500;
+const WALLET_CONNECTION_TIMEOUT_MS = 45_000;
 
 // Using ScheduledShow type from db
 
@@ -301,6 +310,10 @@ export default function ShowsPage() {
   const [hasBookedSelectedShow, setHasBookedSelectedShow] = useState(false);
   const [bookingStatusLoading, setBookingStatusLoading] = useState(false);
   const [bookingActionLoading, setBookingActionLoading] = useState(false);
+  const { connectWallet } = useConnectWallet();
+  const { wallets, ready: walletsReady } = useWallets();
+  const walletsRef = useRef<ConnectedWallet[]>([]);
+  const walletsReadyRef = useRef<boolean>(walletsReady);
   const bookingProcessing = bookingActionLoading;
   const bookingDisabled = bookingStatusLoading || bookingActionLoading;
 
@@ -315,6 +328,55 @@ export default function ShowsPage() {
     };
     fetchShows();
   }, []);
+
+  useEffect(() => {
+    walletsRef.current = wallets;
+  }, [wallets]);
+
+  useEffect(() => {
+    walletsReadyRef.current = walletsReady;
+  }, [walletsReady]);
+
+  const waitForWalletConnection = useCallback(async () => {
+    const start = Date.now();
+
+    while (Date.now() - start < WALLET_CONNECTION_TIMEOUT_MS) {
+      if (walletsReadyRef.current) {
+        const connectedWallet = walletsRef.current.find(
+          (entry) => entry.type === "ethereum"
+        );
+
+        if (connectedWallet) {
+          return connectedWallet;
+        }
+      }
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, WALLET_CONNECTION_POLL_MS)
+      );
+    }
+
+    throw new Error("Timed out waiting for wallet connection");
+  }, []);
+
+  const ensureWalletConnected = useCallback(async () => {
+    const existingWallet = walletsRef.current.find(
+      (entry) => entry.type === "ethereum"
+    );
+
+    if (existingWallet) {
+      return existingWallet;
+    }
+
+    try {
+      connectWallet();
+    } catch (error) {
+      console.error("Failed to open wallet connection modal", error);
+      throw error;
+    }
+
+    return waitForWalletConnection();
+  }, [connectWallet, waitForWalletConnection]);
 
   const handleShowSelect = (show: ScheduledShow) => {
     setSelectedShow(show);
@@ -384,8 +446,52 @@ export default function ShowsPage() {
       return;
     }
 
+    const tier = selectedShow.pricingCards?.find(
+      (card) => card.label === tierId
+    );
+
+    if (!tier) {
+      console.error("Selected tier not found", tierId);
+      return;
+    }
+
+    const requiresPayment = tier.pricing > 0;
+    const payoutAddress = selectedShow.payoutAddress?.trim();
+    const ethUsdtAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+
+    if (requiresPayment) {
+      if (!payoutAddress) {
+        console.error("No payout address configured for this show");
+        return;
+      }
+
+      if (!ethUsdtAddress) {
+        console.error("No USDT contract address configured");
+        return;
+      }
+    }
+
     try {
       setBookingActionLoading(true);
+
+      let paymentTxHash: string | undefined;
+
+      if (requiresPayment) {
+        const wallet = await ensureWalletConnected();
+        try {
+          const { transferTxHash } = await sendUsdtPayment({
+            wallet,
+            payoutAddress: "0x80C430858e5120A293C060243d555f570Ab0B04D",
+            usdtContractAddress: ethUsdtAddress!,
+            amount: tier.pricing,
+          });
+          paymentTxHash = transferTxHash;
+        } catch (paymentError) {
+          console.error("Failed to process USDT payment", paymentError);
+          throw paymentError;
+        }
+      }
+
       const booking = await createShowBooking({
         show: selectedShow,
         tierLabel: tierId,
@@ -404,9 +510,15 @@ export default function ShowsPage() {
 
       if (booking) {
         setHasBookedSelectedShow(true);
+        if (requiresPayment) {
+          console.info(
+            "Booking confirmed with payment transaction",
+            paymentTxHash
+          );
+        }
       }
     } catch (error) {
-      console.error("Failed to create show booking", error);
+      console.error("Failed to complete show booking flow", error);
     } finally {
       setBookingActionLoading(false);
     }
