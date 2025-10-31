@@ -41,6 +41,9 @@ interface ShowDetailsProps {
   analytics: ShowAnalytics | null;
   onBack: () => void;
   onBookTier: (tierId: string) => void;
+  bookingLoading?: boolean;
+  bookingDisabled?: boolean;
+  isBooked?: boolean;
 }
 
 const getDayName = (date: string): string => {
@@ -84,6 +87,9 @@ export default function ShowDetails({
   analytics,
   onBack,
   onBookTier,
+  bookingLoading,
+  bookingDisabled,
+  isBooked,
 }: ShowDetailsProps) {
   const normalizeHandle = (value?: string): string =>
     (value || "").replace(/^@/, "").trim().toLowerCase();
@@ -274,7 +280,23 @@ export default function ShowDetails({
       </div>
 
       {/* Pricing & What's Included */}
-      <PricingCards show={show} onBook={(tier) => onBookTier(tier)} />
+      {isBooked && (
+        <div
+          className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 rounded-xl p-4 text-sm"
+          style={{ fontFamily: "Inter, sans-serif" }}
+        >
+          You have already booked this show. Feel free to reach out to the host
+          if you need to make changes.
+        </div>
+      )}
+
+      <PricingCards
+        show={show}
+        onBook={(tier) => onBookTier(tier)}
+        bookingLoading={bookingLoading}
+        disabled={bookingDisabled}
+        isBooked={isBooked}
+      />
 
       {analytics && (
         <>

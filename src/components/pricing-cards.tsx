@@ -1,15 +1,24 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, Calendar } from "lucide-react";
+import { Check, Calendar, Loader2 } from "lucide-react";
 import type { ScheduledShow as DBScheduledShow } from "@/services/db/shows.db";
 
 interface PricingCardsProps {
   show: DBScheduledShow;
   onBook?: (cardTitle: string, show: DBScheduledShow) => void;
+  bookingLoading?: boolean;
+  isBooked?: boolean;
+  disabled?: boolean;
 }
 
-export default function PricingCards({ show, onBook }: PricingCardsProps) {
+export default function PricingCards({
+  show,
+  onBook,
+  bookingLoading,
+  isBooked,
+  disabled,
+}: PricingCardsProps) {
   const cards = show.pricingCards || [];
 
   if (!cards || cards.length === 0) {
@@ -84,13 +93,30 @@ export default function PricingCards({ show, onBook }: PricingCardsProps) {
               )}
 
             <motion.button
-              className="w-full mt-auto flex items-center justify-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-200 bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
+              className={`w-full mt-auto flex items-center justify-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-200 text-white ${
+                isBooked
+                  ? "bg-emerald-600/80 cursor-not-allowed"
+                  : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              }`}
               style={{ fontFamily: "Inter, sans-serif" }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={isBooked ? undefined : { scale: 1.02 }}
+              whileTap={isBooked ? undefined : { scale: 0.98 }}
               onClick={() => handleBook(card.label)}
+              disabled={Boolean(disabled || bookingLoading || isBooked)}
             >
-              <Calendar className="w-4 h-4" /> Book
+              {bookingLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Booking...
+                </>
+              ) : isBooked ? (
+                <>
+                  <Check className="w-4 h-4" /> Booked
+                </>
+              ) : (
+                <>
+                  <Calendar className="w-4 h-4" /> Book
+                </>
+              )}
             </motion.button>
           </motion.div>
         ))}

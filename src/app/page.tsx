@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -20,6 +20,7 @@ import {
   LeaderboardProject,
   getLbProjectByTwitterUsername,
 } from "@/services/db/leaderboardProjects.db";
+import { UsersGrowthChart } from "@/components/users-growth";
 import { useRouter } from "next/navigation";
 
 interface AnalyticsMetrics {
@@ -59,7 +60,7 @@ export default function Dashboard() {
   } = useQuery<LeaderboardProject[], Error>({
     queryKey: ["project", twitterObj?.username || ""],
     queryFn: async (): Promise<LeaderboardProject[]> => {
-      return await getLbProjectByTwitterUsername(twitterObj?.username || "");
+      return await getLbProjectByTwitterUsername("adam_songjam");
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -168,7 +169,7 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          Songjam Dashboard
+          Dealflow Dashboard
         </motion.h1>
         <motion.p
           className="text-xl max-w-4xl mx-auto drop-shadow-lg text-white/90"
@@ -177,7 +178,7 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          Track your project's growth and engagement metrics
+          Schedule a show, a shoutout, a season or more
         </motion.p>
       </div>
 
@@ -335,6 +336,10 @@ export default function Dashboard() {
                   );
                 })}
             </div>
+
+            {project?.projectId && (
+              <UsersGrowthChart projectId={project.projectId} />
+            )}
           </div>
 
           {/* Last Updated */}

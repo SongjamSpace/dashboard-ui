@@ -1,4 +1,12 @@
-import { collection, doc, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "../firebase.service";
 
 const LEADERBOARD_PROJECTS_COLLECTION = "leaderboard_projects";
@@ -42,3 +50,30 @@ export interface LeaderboardProject {
   userIdsForUpdate: string[];
   weeklyChart: ChartConfig;
 }
+
+export interface LeaderboardProjectSnapshot {
+  id?: string;
+  createdAt: number;
+  createdDateTime: string | Date;
+  usersCount: number;
+}
+
+export const getLbProjectSnapshots = async (
+  projectId: string,
+  take: number = 50
+) => {
+  const projectRef = doc(db, LEADERBOARD_PROJECTS_COLLECTION, projectId);
+  const snapshotsCollection = collection(projectRef, "snapshots");
+  const q = query(
+    snapshotsCollection,
+    orderBy("createdAt", "desc"),
+    limit(take)
+  );
+
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map((snapshotDoc) => ({
+    id: snapshotDoc.id,
+    ...(snapshotDoc.data() as LeaderboardProjectSnapshot),
+  }));
+};

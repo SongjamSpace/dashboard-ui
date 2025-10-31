@@ -56,8 +56,8 @@ export default function LoginScreen({ login }: LoginScreenProps) {
               className="text-white/80 mb-6"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              Connect your Twitter/X account to access your Songjam dashboard
-              and track your engagement metrics.
+              Connect your Twitter/X account to access your Dealflow dashboard,
+              book or be booked and track X Space engagement metrics.
             </p>
             <motion.button
               onClick={login}

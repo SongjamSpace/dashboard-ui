@@ -21,6 +21,11 @@ import {
   type ScheduledShow,
 } from "@/services/db/shows.db";
 import ShowDetails from "@/components/show-details";
+import { useAuth } from "@/components/providers";
+import {
+  createShowBooking,
+  getShowBooking,
+} from "@/services/db/showBookings.db";
 
 // Using ScheduledShow type from db
 
@@ -288,10 +293,16 @@ const formatSchedule = (show: ScheduledShow): string => {
 };
 
 export default function ShowsPage() {
+  const { authenticated, login, twitterObj, user } = useAuth();
   const [selectedShow, setSelectedShow] = useState<ScheduledShow | null>(null);
   const [selectedAnalytics, setSelectedAnalytics] =
     useState<ShowAnalytics | null>(null);
   const [dbShows, setDbShows] = useState<ScheduledShow[]>([]);
+  const [hasBookedSelectedShow, setHasBookedSelectedShow] = useState(false);
+  const [bookingStatusLoading, setBookingStatusLoading] = useState(false);
+  const [bookingActionLoading, setBookingActionLoading] = useState(false);
+  const bookingProcessing = bookingActionLoading;
+  const bookingDisabled = bookingStatusLoading || bookingActionLoading;
 
   useEffect(() => {
     const fetchShows = async () => {
@@ -308,16 +319,97 @@ export default function ShowsPage() {
   const handleShowSelect = (show: ScheduledShow) => {
     setSelectedShow(show);
     setSelectedAnalytics(mockAnalytics[show.id!] || null);
+    setHasBookedSelectedShow(false);
   };
 
   const handleBackToList = () => {
     setSelectedShow(null);
     setSelectedAnalytics(null);
+    setHasBookedSelectedShow(false);
   };
 
-  const handleBookTier = (tierId: string) => {
-    // Placeholder: hook into booking flow or open a modal as needed
-    console.log("Book tier", tierId, "for show", selectedShow?.showName);
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchBookingStatus = async () => {
+      if (!selectedShow?.id || !twitterObj?.twitterId) {
+        if (!ignore) {
+          setHasBookedSelectedShow(false);
+        }
+        return;
+      }
+
+      try {
+        setBookingStatusLoading(true);
+        const booking = await getShowBooking(
+          selectedShow.id,
+          String(twitterObj.twitterId)
+        );
+        if (!ignore) {
+          setHasBookedSelectedShow(Boolean(booking));
+        }
+      } catch (error) {
+        console.error("Failed to fetch booking status", error);
+      } finally {
+        if (!ignore) {
+          setBookingStatusLoading(false);
+        }
+      }
+    };
+
+    fetchBookingStatus();
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedShow?.id, twitterObj?.twitterId]);
+
+  const handleBookTier = async (tierId: string) => {
+    if (!selectedShow?.id) {
+      console.warn("No show selected for booking");
+      return;
+    }
+
+    if (!authenticated) {
+      try {
+        await login();
+      } catch (error) {
+        console.error("Failed to initiate login before booking", error);
+      }
+      return;
+    }
+
+    if (!twitterObj?.twitterId) {
+      console.error("Missing Twitter information for booking");
+      return;
+    }
+
+    try {
+      setBookingActionLoading(true);
+      const booking = await createShowBooking({
+        show: selectedShow,
+        tierLabel: tierId,
+        user: {
+          uid: user?.uid ?? null,
+          twitterId: String(twitterObj.twitterId),
+          twitterHandle: twitterObj.username
+            ? String(twitterObj.username)
+            : null,
+          displayName:
+            twitterObj.name != null
+              ? String(twitterObj.name)
+              : user?.displayName ?? null,
+        },
+      });
+
+      if (booking) {
+        setHasBookedSelectedShow(true);
+      }
+    } catch (error) {
+      console.error("Failed to create show booking", error);
+    } finally {
+      setBookingActionLoading(false);
+    }
   };
 
   return (
@@ -363,7 +455,7 @@ export default function ShowsPage() {
                 transition={{ duration: 0.5 }}
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
               >
-                {[...dbShows, ...mockShows].map((show, index) => (
+                {[...dbShows].map((show, index) => (
                   <motion.div
                     key={show.id!}
                     className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 overflow-hidden hover:bg-white/15 transition-all duration-300 cursor-pointer group"
@@ -501,6 +593,9 @@ export default function ShowsPage() {
                 analytics={selectedAnalytics}
                 onBack={handleBackToList}
                 onBookTier={handleBookTier}
+                bookingLoading={bookingProcessing}
+                bookingDisabled={bookingDisabled}
+                isBooked={hasBookedSelectedShow}
               />
             )}
           </AnimatePresence>
