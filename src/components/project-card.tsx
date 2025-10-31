@@ -44,6 +44,7 @@ function ChartToggle({ label, config, onChange }: ChartToggleProps) {
           Mode: {config.mode}
         </span>
         <button
+          disabled
           onClick={() => onChange({ ...config, enabled: !config.enabled })}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
             config.enabled ? "bg-blue-600" : "bg-gray-600"
@@ -122,13 +123,13 @@ export function ProjectCard({ project, onProjectUpdate }: ProjectCardProps) {
               className="text-lg font-semibold text-white"
               style={{ fontFamily: "Orbitron, sans-serif" }}
             >
-              {localProject.projectName || "Project"}
+              @{localProject.twitterUsername}
             </h3>
             <p
               className="text-white/60 text-sm"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              {localProject.projectDescription || "No description"}
+              ${localProject.cashtag}
             </p>
           </div>
         </div>
@@ -302,76 +303,6 @@ export function ProjectCard({ project, onProjectUpdate }: ProjectCardProps) {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-
-      {/* Project Info */}
-      <div className="space-y-3">
-        <div className="flex items-center space-x-2">
-          <span
-            className="text-white/60 text-sm"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            Twitter:
-          </span>
-          <span
-            className="text-white font-medium"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            @{localProject.twitterUsername}
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <span
-            className="text-white/60 text-sm"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            Cashtag:
-          </span>
-          <span
-            className="text-white font-medium"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            ${localProject.cashtag}
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <span
-            className="text-white/60 text-sm"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            Project ID:
-          </span>
-          <span className="text-white font-medium font-mono text-sm">
-            {localProject.projectId}
-          </span>
-        </div>
-
-        {/* Status Indicator */}
-        <div className="flex items-center space-x-2">
-          <span
-            className="text-white/60 text-sm"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            Status:
-          </span>
-          <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              localProject.enabled
-                ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                : "bg-red-500/20 text-red-400 border border-red-500/30"
-            }`}
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            <div
-              className={`w-2 h-2 rounded-full mr-2 ${
-                localProject.enabled ? "bg-green-400" : "bg-red-400"
-              }`}
-            />
-            {localProject.enabled ? "Active" : "Inactive"}
-          </span>
-        </div>
       </div>
     </motion.div>
   );

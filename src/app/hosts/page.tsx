@@ -9,6 +9,7 @@ import RecurringPatternSelector from "@/components/recurring-pattern-selector";
 import SuccessNotification from "@/components/success-notification";
 import Navbar from "@/components/navbar";
 import UserShowCard from "@/components/user-show-card";
+import LoginScreen from "@/components/login-screen";
 import { useAuth } from "@/components/providers";
 import {
   createScheduledShow,
@@ -16,8 +17,8 @@ import {
   ScheduledShow,
 } from "@/services/db/shows.db";
 
-export default function KOLsPage() {
-  const { user, authenticated, twitterObj } = useAuth();
+export default function Hosts() {
+  const { ready, user, authenticated, twitterObj, login } = useAuth();
   const [selectedSlots, setSelectedSlots] = useState<
     { day: number; time: string }[]
   >([]);
@@ -29,6 +30,18 @@ export default function KOLsPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)] flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <LoginScreen login={login} />;
+  }
 
   const fetchUserShows = async () => {
     if (authenticated && user) {

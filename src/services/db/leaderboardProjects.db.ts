@@ -7,7 +7,7 @@ export const getLbProjectByTwitterUsername = async (
 ) => {
   const q = query(
     collection(db, LEADERBOARD_PROJECTS_COLLECTION),
-    where("twitterUsername", "==", "adam_songjam")
+    where("twitterUsername", "==", twitterUsername)
   );
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map((doc) => doc.data() as LeaderboardProject);
@@ -34,12 +34,6 @@ export interface LeaderboardProject {
   launchTimeInSeconds: number;
   monthlyChart: ChartConfig;
   projectId: string;
-  projectName: string;
-  projectDescription: string;
-  projectWebsite: string;
-  projectLogo: string;
-  projectBanner: string;
-  projectColor: string;
   searchQuery: string;
   startDateInSeconds: number;
   teamIgnoreList: string[];

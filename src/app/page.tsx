@@ -4,7 +4,14 @@ import { motion } from "framer-motion";
 import { useState, useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
-import { Eye, Heart, MessageCircle, Quote, RotateCcw } from "lucide-react";
+import {
+  Eye,
+  Heart,
+  MessageCircle,
+  Quote,
+  RotateCcw,
+  Bookmark,
+} from "lucide-react";
 import { useAuth } from "@/components/providers";
 import Navbar from "@/components/navbar";
 import { ProjectCard } from "@/components/project-card";
@@ -15,13 +22,19 @@ import {
 } from "@/services/db/leaderboardProjects.db";
 import { useRouter } from "next/navigation";
 
-interface AnalyticsData {
-  views: number;
-  likes: number;
-  replies: number;
-  quotes: number;
-  retweets: number;
-  lastUpdated: string;
+interface AnalyticsMetrics {
+  projectId: string;
+  totalLikes: number;
+  totalReplies: number;
+  totalRetweets: number;
+  totalQuotes: number;
+  totalBookmarks: number;
+  totalViews?: number;
+}
+
+interface AnalyticsResponse {
+  success: boolean;
+  metrics: AnalyticsMetrics;
 }
 
 interface LeaderboardRow {
@@ -34,45 +47,67 @@ interface LeaderboardRow {
 
 type Timeframe = "24H" | "ALL";
 
-// Mock analytics data generator
-const generateMockAnalytics = (timeframe: Timeframe): AnalyticsData => {
-  const baseValues = {
-    views: timeframe === "24H" ? 12500 : 125000,
-    likes: timeframe === "24H" ? 850 : 8500,
-    replies: timeframe === "24H" ? 120 : 1200,
-    quotes: timeframe === "24H" ? 45 : 450,
-    retweets: timeframe === "24H" ? 200 : 2000,
-  };
-
-  // Add some randomness
-  const randomFactor = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
-
-  return {
-    views: Math.round(baseValues.views * randomFactor),
-    likes: Math.round(baseValues.likes * randomFactor),
-    replies: Math.round(baseValues.replies * randomFactor),
-    quotes: Math.round(baseValues.quotes * randomFactor),
-    retweets: Math.round(baseValues.retweets * randomFactor),
-    lastUpdated: new Date().toISOString(),
-  };
-};
-
 export default function Dashboard() {
-  const { ready, authenticated, login } = useAuth();
+  const { ready, authenticated, login, twitterObj } = useAuth();
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("24H");
   const router = useRouter();
-  // Mock analytics data fetch
+  // Fetch project data from Firebase
+  const {
+    data: projectData,
+    isLoading: projectLoading,
+    error: projectError,
+  } = useQuery<LeaderboardProject[], Error>({
+    queryKey: ["project", twitterObj?.username || ""],
+    queryFn: async (): Promise<LeaderboardProject[]> => {
+      return await getLbProjectByTwitterUsername(twitterObj?.username || "");
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    enabled: authenticated, // Only fetch when user is authenticated
+  });
+
+  // Get the first project (assuming one project per Twitter username)
+  const project = projectData?.[0];
+
+  const baseServerUrl = process.env.NEXT_PUBLIC_SONGJAM_SERVER;
+
+  // Analytics data fetch
   const { data: analyticsData, isLoading: analyticsLoading } =
-    useQuery<AnalyticsData>({
-      queryKey: ["analytics", selectedTimeframe],
-      queryFn: async (): Promise<AnalyticsData> => {
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        return generateMockAnalytics(selectedTimeframe);
+    useQuery<AnalyticsMetrics>({
+      queryKey: ["analytics", project?.projectId, selectedTimeframe],
+      queryFn: async (): Promise<AnalyticsMetrics> => {
+        if (!project?.projectId) {
+          throw new Error("Missing projectId for analytics data request");
+        }
+
+        if (!baseServerUrl) {
+          throw new Error(
+            "NEXT_PUBLIC_SONGJAM_SERVER environment variable is not configured"
+          );
+        }
+
+        const analyticsUrl = new URL("/leaderboard/metrics", baseServerUrl);
+        analyticsUrl.searchParams.set("projectId", project.projectId);
+        analyticsUrl.searchParams.set("timeframe", selectedTimeframe);
+
+        const response = await fetch(analyticsUrl.toString());
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = (await response.json()) as AnalyticsResponse;
+
+        if (!result.success) {
+          throw new Error("Analytics request did not succeed");
+        }
+
+        return result.metrics;
       },
       staleTime: 60 * 1000,
       placeholderData: keepPreviousData,
       refetchOnWindowFocus: false,
+      enabled: Boolean(project?.projectId),
     });
 
   // Fetch leaderboard data (using existing endpoint)
@@ -82,10 +117,10 @@ export default function Dashboard() {
     isFetching: leaderboardFetching,
     error: leaderboardError,
   } = useQuery<LeaderboardRow[], Error>({
-    queryKey: ["leaderboard", "adam_songjam"],
+    queryKey: ["leaderboard", project?.projectId || ""],
     queryFn: async (): Promise<LeaderboardRow[]> => {
       const response = await fetch(
-        "https://songjamspace-leaderboard.logesh-063.workers.dev/adam_songjam"
+        `https://songjamspace-leaderboard.logesh-063.workers.dev/${project?.projectId}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -96,42 +131,11 @@ export default function Dashboard() {
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
+    enabled: Boolean(project?.projectId),
   });
-
-  // Fetch project data from Firebase
-  const {
-    data: projectData,
-    isLoading: projectLoading,
-    error: projectError,
-  } = useQuery<LeaderboardProject[], Error>({
-    queryKey: ["project", "songjamspace"],
-    queryFn: async (): Promise<LeaderboardProject[]> => {
-      return await getLbProjectByTwitterUsername("songjamspace");
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-    enabled: authenticated, // Only fetch when user is authenticated
-  });
-
-  // Get the first project (assuming one project per Twitter username)
-  const project = projectData?.[0];
 
   const handleTimeframeChange = (timeframe: Timeframe) => {
     setSelectedTimeframe(timeframe);
-  };
-
-  const formatLastUpdated = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d ago`;
   };
 
   // Show loading state while Privy is initializing
@@ -225,13 +229,13 @@ export default function Dashboard() {
               <div className="bg-yellow-500/10 backdrop-blur-sm rounded-xl border border-yellow-500/20 p-6">
                 <div className="text-yellow-400 text-center">
                   <p style={{ fontFamily: "Inter, sans-serif" }}>
-                    No project found for username "songjamspace"
+                    No project found for your account {twitterObj?.username}
                   </p>
                   <p
                     className="text-sm text-yellow-400/70 mt-2"
                     style={{ fontFamily: "Inter, sans-serif" }}
                   >
-                    Please check if the project exists in the database
+                    Reach out to us to create a Leaderboard
                   </p>
                 </div>
               </div>
@@ -242,7 +246,7 @@ export default function Dashboard() {
           <div className="mb-8">
             {/* Timeframe Selector - Aligned to the right */}
             <div className="flex justify-end mb-6">
-              <div className="flex rounded-lg p-1 border bg-white/10 border-white/20">
+              {/* <div className="flex rounded-lg p-1 border bg-white/10 border-white/20">
                 {(["24H", "ALL"] as Timeframe[]).map((timeframe) => (
                   <button
                     key={timeframe}
@@ -257,20 +261,53 @@ export default function Dashboard() {
                     {timeframe}
                   </button>
                 ))}
-              </div>
+              </div> */}
             </div>
 
             {/* Analytics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
               {analyticsData &&
                 [
-                  { key: "views", label: "Views", icon: Eye },
-                  { key: "likes", label: "Likes", icon: Heart },
-                  { key: "replies", label: "Replies", icon: MessageCircle },
-                  { key: "quotes", label: "Quotes", icon: Quote },
-                  { key: "retweets", label: "Retweets", icon: RotateCcw },
+                  {
+                    key: "totalViews" as const,
+                    label: "Views",
+                    icon: Eye,
+                    fallback: 0,
+                  },
+                  {
+                    key: "totalLikes" as const,
+                    label: "Likes",
+                    icon: Heart,
+                    fallback: 0,
+                  },
+                  {
+                    key: "totalReplies" as const,
+                    label: "Replies",
+                    icon: MessageCircle,
+                    fallback: 0,
+                  },
+                  {
+                    key: "totalQuotes" as const,
+                    label: "Quotes",
+                    icon: Quote,
+                    fallback: 0,
+                  },
+                  {
+                    key: "totalRetweets" as const,
+                    label: "Retweets",
+                    icon: RotateCcw,
+                    fallback: 0,
+                  },
+                  {
+                    key: "totalBookmarks" as const,
+                    label: "Bookmarks",
+                    icon: Bookmark,
+                    fallback: 0,
+                  },
                 ].map((metric) => {
                   const IconComponent = metric.icon;
+                  const value =
+                    analyticsData[metric.key] ?? metric.fallback ?? 0;
                   return (
                     <motion.div
                       key={metric.key}
@@ -286,9 +323,7 @@ export default function Dashboard() {
                         className="text-3xl font-bold text-white mb-1"
                         style={{ fontFamily: "Orbitron, sans-serif" }}
                       >
-                        {analyticsData[
-                          metric.key as keyof AnalyticsData
-                        ].toLocaleString()}
+                        {value.toLocaleString()}
                       </div>
                       <div
                         className="text-white/70 text-sm"
