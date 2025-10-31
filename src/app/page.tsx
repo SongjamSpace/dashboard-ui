@@ -60,7 +60,7 @@ export default function Dashboard() {
   } = useQuery<LeaderboardProject[], Error>({
     queryKey: ["project", twitterObj?.username || ""],
     queryFn: async (): Promise<LeaderboardProject[]> => {
-      return await getLbProjectByTwitterUsername("adam_songjam");
+      return await getLbProjectByTwitterUsername(twitterObj?.username || "");
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,

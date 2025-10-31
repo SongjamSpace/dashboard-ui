@@ -24,7 +24,7 @@ export default function LoginScreen({ login }: LoginScreenProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          Songjam Dashboard
+          Dealflow Dashboard
         </motion.h1>
         <motion.p
           className="text-xl max-w-4xl mx-auto drop-shadow-lg text-white/90 mb-8"
@@ -33,7 +33,7 @@ export default function LoginScreen({ login }: LoginScreenProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          Sign in with Twitter to access your dashboard
+          Schedule a show, a shoutout, a season or more
         </motion.p>
       </div>
 
