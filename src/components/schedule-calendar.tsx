@@ -11,11 +11,55 @@ interface ScheduleCalendarProps {
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const FULL_DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 const HOURS = Array.from({ length: 24 }, (_, i) => i); // 12 AM to 11 PM (0-23)
 const TIME_SLOTS = HOURS.flatMap((hour) => [
   `${hour.toString().padStart(2, "0")}:00`,
   `${hour.toString().padStart(2, "0")}:30`,
 ]);
+
+const getScheduleDayIndex = (
+  scheduleItem: ScheduledShow["schedule"][number]
+): number => {
+  if (!scheduleItem) return -1;
+
+  if (
+    typeof (scheduleItem as any).day === "number" &&
+    Number.isFinite((scheduleItem as any).day)
+  ) {
+    const value = Math.round((scheduleItem as any).day as number);
+    return ((value % 7) + 7) % 7;
+  }
+
+  const legacyDayIndex = (scheduleItem as any).dayIndex;
+  if (typeof legacyDayIndex === "number") {
+    const value = Math.round(legacyDayIndex);
+    return ((value % 7) + 7) % 7;
+  }
+
+  if (typeof scheduleItem.day === "string") {
+    const trimmed = scheduleItem.day.trim().toLowerCase();
+    let index = FULL_DAY_NAMES.findIndex(
+      (name) => name.toLowerCase() === trimmed
+    );
+    if (index !== -1) return index;
+
+    index = FULL_DAY_NAMES.findIndex(
+      (name) => name.slice(0, 3).toLowerCase() === trimmed.slice(0, 3)
+    );
+    if (index !== -1) return index;
+  }
+
+  return -1;
+};
 
 // Helper function to convert time string to minutes since midnight
 const timeToMinutes = (time: string): number => {
@@ -48,10 +92,7 @@ const isTimeSlotOccupiedByShow = (
 ): boolean => {
   // Check if any schedule entry matches the current day and time
   return show.schedule.some((scheduleItem) => {
-    const scheduleDate = new Date(scheduleItem.date);
-    const scheduleDay = scheduleDate.getDay();
-
-    // Check if the day matches
+    const scheduleDay = getScheduleDayIndex(scheduleItem);
     if (scheduleDay !== day) return false;
 
     // Check if the time slot is occupied by this show
@@ -68,9 +109,7 @@ const isFirstSlotOfShow = (
 ): boolean => {
   // Check if any schedule entry matches the current day and time exactly
   return show.schedule.some((scheduleItem) => {
-    const scheduleDate = new Date(scheduleItem.date);
-    const scheduleDay = scheduleDate.getDay();
-
+    const scheduleDay = getScheduleDayIndex(scheduleItem);
     return scheduleDay === day && scheduleItem.time === time;
   });
 };
@@ -127,7 +166,6 @@ export default function ScheduleCalendar({
   selectedPattern,
   onSlotSelect,
 }: ScheduleCalendarProps) {
-  console.log({ scheduledShows });
   const isSlotOccupied = (day: number, time: string) => {
     return scheduledShows.some((show) => {
       return isTimeSlotOccupiedByShow(show, day, time);

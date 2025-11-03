@@ -6,6 +6,41 @@ import { Mic, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { Trash } from "lucide-react";
 import { deleteShow, ScheduledShow } from "@/services/db/shows.db";
 
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const normalizeDayName = (day: string | number | undefined): string => {
+  if (typeof day === "number" && Number.isFinite(day)) {
+    const normalized = Math.round(day);
+    return DAY_NAMES[((normalized % 7) + 7) % 7];
+  }
+
+  if (typeof day === "string") {
+    const trimmed = day.trim();
+    if (!trimmed) return "";
+
+    const lower = trimmed.toLowerCase();
+    const exactMatch = DAY_NAMES.find((name) => name.toLowerCase() === lower);
+    if (exactMatch) return exactMatch;
+
+    const shortMatch = DAY_NAMES.find(
+      (name) => name.slice(0, 3).toLowerCase() === lower.slice(0, 3)
+    );
+    if (shortMatch) return shortMatch;
+
+    return trimmed;
+  }
+
+  return "";
+};
+
 interface UserShowCardProps {
   show: ScheduledShow;
   loadUserShows: () => void;
@@ -18,7 +53,7 @@ export default function UserShowCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showPricingPopup, setShowPricingPopup] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  // Display schedule date and time as provided in props without timezone conversion.
+  // Display schedule day and time as provided in props without timezone conversion.
   const formatTime12Hour = (timeString: string) => {
     const match = /^(\d{1,2}):(\d{2})$/.exec(timeString);
     if (!match) return timeString;
@@ -131,7 +166,9 @@ export default function UserShowCard({
                       className="text-white/70"
                       style={{ fontFamily: "Inter, sans-serif" }}
                     >
-                      {schedule.date}
+                      {normalizeDayName(
+                        schedule.day ?? (schedule as any).dayIndex
+                      )}
                     </span>
                     <span
                       className="text-white/70"

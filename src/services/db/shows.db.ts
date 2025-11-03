@@ -17,38 +17,208 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 const SHOWS_COLLECTION = "shows";
 const SHOW_ANALYTICS_COLLECTION = "show_analytics";
 
-// Timezone helpers
-function convertScheduleToUTC(
-  schedule: { date: string; time: string }[]
-): { date: string; time: string }[] {
-  return schedule.map(({ date, time }) => {
-    const [hoursStr, minutesStr] = time.split(":");
-    const hours = parseInt(hoursStr, 10);
-    const minutes = parseInt(minutesStr, 10);
-    const localMidnight = new Date(`${date}T00:00:00`);
-    localMidnight.setHours(hours, minutes, 0, 0);
-    const yyyy = localMidnight.getUTCFullYear();
-    const mm = String(localMidnight.getUTCMonth() + 1).padStart(2, "0");
-    const dd = String(localMidnight.getUTCDate()).padStart(2, "0");
-    const hh = String(localMidnight.getUTCHours()).padStart(2, "0");
-    const mi = String(localMidnight.getUTCMinutes()).padStart(2, "0");
-    return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${mi}` };
-  });
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+// Timezone helpers working with day/time (no dates)
+const padTimeUnit = (value: number): string => String(value).padStart(2, "0");
+
+const toDayName = (index: number): string => DAY_NAMES[((index % 7) + 7) % 7];
+
+const normalizeDayIndex = (day?: number | string): number => {
+  if (typeof day === "number" && Number.isFinite(day)) {
+    const normalized = Math.round(day);
+    return ((normalized % 7) + 7) % 7;
+  }
+
+  if (typeof day === "string") {
+    const trimmed = day.trim().toLowerCase();
+    let index = DAY_NAMES.findIndex((name) => name.toLowerCase() === trimmed);
+
+    if (index !== -1) return index;
+
+    index = DAY_NAMES.findIndex(
+      (name) => name.slice(0, 3).toLowerCase() === trimmed.slice(0, 3)
+    );
+
+    if (index !== -1) return index;
+  }
+
+  return 0;
+};
+
+const getReferenceDateForLocalDay = (dayIndex: number): Date => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = (dayIndex + 7 - today.getDay()) % 7;
+  const reference = new Date(today);
+  reference.setDate(today.getDate() + diff);
+  return reference;
+};
+
+const getReferenceDateForUtcDay = (utcDayIndex: number): Date => {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const diff = (utcDayIndex + 7 - today.getUTCDay()) % 7;
+  const reference = new Date(today);
+  reference.setUTCDate(today.getUTCDate() + diff);
+  return reference;
+};
+
+const convertLocalDayTimeToUTC = (
+  day: number | string | undefined,
+  time: string
+) => {
+  const dayIndex = normalizeDayIndex(day);
+  const reference = getReferenceDateForLocalDay(dayIndex);
+  const [hoursStr = "0", minutesStr = "0"] = time.split(":");
+  const hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
+
+  const localDateTime = new Date(reference);
+  localDateTime.setHours(hours, minutes, 0, 0);
+
+  const utcDayIndex = localDateTime.getUTCDay();
+  const utcTime = `${padTimeUnit(localDateTime.getUTCHours())}:${padTimeUnit(
+    localDateTime.getUTCMinutes()
+  )}`;
+
+  return {
+    dayIndex,
+    dayName: toDayName(dayIndex),
+    utcDayIndex,
+    utcDayName: toDayName(utcDayIndex),
+    utcTime,
+  };
+};
+
+const convertUtcDayTimeToLocal = (
+  utcDay: number | string | undefined,
+  utcTime: string
+) => {
+  const utcDayIndex = normalizeDayIndex(utcDay);
+  const reference = getReferenceDateForUtcDay(utcDayIndex);
+  const [hoursStr = "0", minutesStr = "0"] = utcTime.split(":");
+  const hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
+
+  const utcDateTime = new Date(reference);
+  utcDateTime.setUTCHours(hours, minutes, 0, 0);
+
+  const dayIndex = utcDateTime.getDay();
+  const time = `${padTimeUnit(utcDateTime.getHours())}:${padTimeUnit(
+    utcDateTime.getMinutes()
+  )}`;
+
+  return {
+    utcDayIndex,
+    utcDayName: toDayName(utcDayIndex),
+    dayIndex,
+    dayName: toDayName(dayIndex),
+    time,
+  };
+};
+
+type ScheduleInput = {
+  day?: number | string;
+  /** legacy support for older persisted data */
+  dayIndex?: number;
+  time?: string;
+  utcDay?: number | string;
+  utcDayIndex?: number;
+  utcTime?: string;
+  date?: string;
+};
+
+export interface ScheduleSlot {
+  day: string;
+  time: string;
+  utcDay?: string;
+  utcDayIndex?: number;
+  utcTime?: string;
+}
+
+const normalizeScheduleEntry = (
+  entry: ScheduleInput | undefined
+): ScheduleSlot => {
+  const slot = entry ?? {};
+
+  let time = typeof slot.time === "string" ? slot.time : undefined;
+  let dayIndex: number | undefined =
+    typeof slot.dayIndex === "number" && Number.isFinite(slot.dayIndex)
+      ? normalizeDayIndex(slot.dayIndex)
+      : undefined;
+
+  if (slot.day !== undefined) {
+    dayIndex = normalizeDayIndex(slot.day);
+  }
+
+  if (typeof slot.date === "string" && typeof slot.time === "string") {
+    const localDate = new Date(`${slot.date}T${slot.time}:00`);
+    dayIndex = localDate.getDay();
+    time = `${padTimeUnit(localDate.getHours())}:${padTimeUnit(
+      localDate.getMinutes()
+    )}`;
+  }
+
+  if (typeof slot.utcTime === "string") {
+    const utcSourceDay =
+      slot.utcDayIndex !== undefined
+        ? slot.utcDayIndex
+        : slot.utcDay !== undefined
+        ? slot.utcDay
+        : undefined;
+
+    if (dayIndex === undefined || !time) {
+      const derived = convertUtcDayTimeToLocal(utcSourceDay, slot.utcTime);
+      if (dayIndex === undefined) {
+        dayIndex = derived.dayIndex;
+      }
+      if (!time) {
+        time = derived.time;
+      }
+    }
+  }
+
+  if (dayIndex === undefined) {
+    dayIndex = 0;
+  }
+
+  if (!time) {
+    time = "00:00";
+  }
+
+  const {
+    utcDayIndex,
+    utcDayName,
+    utcTime: normalizedUtcTime,
+  } = convertLocalDayTimeToUTC(dayIndex, time);
+
+  return {
+    day: toDayName(dayIndex),
+    time,
+    utcDay: utcDayName,
+    utcDayIndex,
+    utcTime: normalizedUtcTime,
+  };
+};
+
+function convertScheduleToUTC(schedule: ScheduleInput[]): ScheduleSlot[] {
+  return schedule.map((entry) => normalizeScheduleEntry(entry));
 }
 
 function convertScheduleFromUTCToLocal(
-  schedule: { date: string; time: string }[] | undefined
-): { date: string; time: string }[] {
+  schedule: ScheduleInput[] | undefined
+): ScheduleSlot[] {
   if (!schedule) return [];
-  return schedule.map(({ date, time }) => {
-    const utc = new Date(`${date}T${time}:00Z`);
-    const yyyy = utc.getFullYear();
-    const mm = String(utc.getMonth() + 1).padStart(2, "0");
-    const dd = String(utc.getDate()).padStart(2, "0");
-    const hh = String(utc.getHours()).padStart(2, "0");
-    const mi = String(utc.getMinutes()).padStart(2, "0");
-    return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${mi}` };
-  });
+  return schedule.map((entry) => normalizeScheduleEntry(entry));
 }
 
 // User interface for show creators
@@ -115,10 +285,7 @@ export interface ScheduledShow {
   description: string;
   coverImage?: string;
   duration: number; // in minutes
-  schedule: {
-    date: string; // YYYY-MM-DD format
-    time: string; // HH:MM format
-  }[];
+  schedule: ScheduleSlot[];
   speakers?: {
     name: string;
     avatar?: string;
@@ -505,10 +672,7 @@ export const createShowDoc = async (showData: {
   showName: string;
   description: string;
   duration: number;
-  schedule: {
-    date: string;
-    time: string;
-  }[];
+  schedule: Array<{ day?: string | number; time: string }>;
   coverImage?: string;
   participants?: ParticipantProfile[];
   spaceHistoryMetadata?: SpaceHistoryMetadata;
@@ -531,24 +695,49 @@ export const createShowDoc = async (showData: {
 
   // Validate schedule entries
   for (const scheduleItem of showData.schedule) {
-    // Validate date format (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(scheduleItem.date)) {
-      throw new Error("Date must be in YYYY-MM-DD format");
+    const hasStringDay = typeof scheduleItem.day === "string";
+    const hasNumericDay = typeof scheduleItem.day === "number";
+
+    if (!hasStringDay && !hasNumericDay) {
+      throw new Error(
+        "Day must be provided as a weekday name or an index between 0 (Sunday) and 6 (Saturday)"
+      );
+    }
+
+    if (hasStringDay) {
+      const trimmed = (scheduleItem.day as string).trim();
+      const lower = trimmed.toLowerCase();
+      const matchesFull = DAY_NAMES.some(
+        (name) => name.toLowerCase() === lower
+      );
+      const matchesShort = DAY_NAMES.some(
+        (name) => name.slice(0, 3).toLowerCase() === lower.slice(0, 3)
+      );
+
+      if (!matchesFull && !matchesShort) {
+        throw new Error(
+          "Day must be a valid weekday name (e.g. Monday, Tue, etc.)"
+        );
+      }
+    }
+
+    if (hasNumericDay) {
+      const numericDayValue = scheduleItem.day as number;
+      if (
+        Number.isNaN(numericDayValue) ||
+        numericDayValue < 0 ||
+        numericDayValue > 6
+      ) {
+        throw new Error(
+          "Day index must be a number between 0 (Sunday) and 6 (Saturday)"
+        );
+      }
     }
 
     // Validate time format (HH:MM)
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeRegex.test(scheduleItem.time)) {
       throw new Error("Time must be in HH:MM format");
-    }
-
-    // Validate that the date is not in the past
-    const scheduleDate = new Date(scheduleItem.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (scheduleDate < today) {
-      throw new Error("Schedule dates cannot be in the past");
     }
   }
 

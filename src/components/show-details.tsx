@@ -46,18 +46,39 @@ interface ShowDetailsProps {
   isBooked?: boolean;
 }
 
-const getDayName = (date: string): string => {
-  const dayNames = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const dayIndex = new Date(date).getDay();
-  return dayNames[dayIndex];
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const getDayName = (day: string | number): string => {
+  if (typeof day === "number" && Number.isFinite(day)) {
+    const normalized = Math.round(day);
+    return DAY_NAMES[((normalized % 7) + 7) % 7];
+  }
+
+  if (typeof day === "string") {
+    const trimmed = day.trim();
+    if (!trimmed) return "";
+
+    const lower = trimmed.toLowerCase();
+    const exactMatch = DAY_NAMES.find((name) => name.toLowerCase() === lower);
+    if (exactMatch) return exactMatch;
+
+    const shortMatch = DAY_NAMES.find(
+      (name) => name.slice(0, 3).toLowerCase() === lower.slice(0, 3)
+    );
+    if (shortMatch) return shortMatch;
+
+    return trimmed;
+  }
+
+  return "";
 };
 
 const formatTime = (time: string): string => {
@@ -70,16 +91,31 @@ const formatTime = (time: string): string => {
 
 const formatSchedule = (show: ScheduledShow): string => {
   if (show.schedule.length === 0) return "No schedule";
+
   if (show.schedule.length === 1) {
-    const { date, time } = show.schedule[0];
-    return `${getDayName(date).slice(0, 3)} • ${formatTime(time)}`;
+    const { day, time } = show.schedule[0];
+    return `${getDayName(day).slice(0, 3)} • ${formatTime(time)}`;
   }
-  const days = show.schedule.map(({ date }) => getDayName(date).slice(0, 3));
-  const uniqueDays = [...new Set(days)];
-  if (uniqueDays.length === 1) {
-    return `${uniqueDays[0]} • ${formatTime(show.schedule[0].time)}`;
-  }
-  return `${uniqueDays.join(", ")} • ${formatTime(show.schedule[0].time)}`;
+
+  // Group schedule by time
+  const scheduleByTime = show.schedule.reduce((acc, slot) => {
+    if (!acc[slot.time]) {
+      acc[slot.time] = [];
+    }
+    acc[slot.time].push(getDayName(slot.day));
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  // Build formatted string - group days by their common times
+  const timeEntries = Object.entries(scheduleByTime).map(([time, days]) => {
+    const uniqueDays = [...new Set(days)];
+    const dayNames = uniqueDays
+      .map((day) => getDayName(day).slice(0, 3))
+      .join(", ");
+    return `${dayNames} • ${formatTime(time)}`;
+  });
+
+  return timeEntries.join(", ");
 };
 
 export default function ShowDetails({

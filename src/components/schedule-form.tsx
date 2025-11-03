@@ -6,7 +6,6 @@ import {
   X,
   Mic,
   Image,
-  Clock,
   Calendar,
   Upload,
   Check,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { PricingCard, ScheduledShow } from "@/services/db/shows.db";
+import SelectedSlotsGrid from "./selected-slots-grid";
 
 interface Speaker {
   userId: string;
@@ -91,8 +91,6 @@ export default function ScheduleForm({
     description: "",
     coverImage: "",
     duration: 60,
-    endDate: "",
-    selectedDays: [] as number[],
     previousSpaceUrl: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -465,20 +463,11 @@ export default function ScheduleForm({
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Convert selectedSlots to schedule format
-    const schedule = selectedSlots.map((slot) => {
-      // Convert day number to actual date
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const daysUntilTarget = (slot.day - dayOfWeek + 7) % 7;
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() + daysUntilTarget);
-
-      return {
-        date: targetDate.toISOString().split("T")[0], // YYYY-MM-DD format
-        time: slot.time,
-      };
-    });
+    // Convert selectedSlots to schedule format (day + time only)
+    const schedule = selectedSlots.map((slot) => ({
+      day: DAYS[slot.day] ?? DAYS[0],
+      time: slot.time,
+    }));
 
     // Group selected slots by day and time for better handling
     const baseShowData = {
@@ -508,15 +497,6 @@ export default function ScheduleForm({
     setShowSuccess(false);
   };
 
-  const handleDayToggle = (day: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      selectedDays: prev.selectedDays.includes(day)
-        ? prev.selectedDays.filter((d) => d !== day)
-        : [...prev.selectedDays, day],
-    }));
-  };
-
   const formatTimeSlot = (day: number, time: string) => {
     const [hours, minutes] = time.split(":");
     const hour = parseInt(hours);
@@ -531,29 +511,6 @@ export default function ScheduleForm({
     const ampm = hour >= 12 ? "PM" : "AM";
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
     return `${displayHour}:${minutes} ${ampm}`;
-  };
-
-  const groupSlotsByDay = () => {
-    const grouped = selectedSlots.reduce((acc, slot) => {
-      if (!acc[slot.day]) {
-        acc[slot.day] = [];
-      }
-      acc[slot.day].push(slot.time);
-      return acc;
-    }, {} as Record<number, string[]>);
-
-    // Sort days and times
-    const sortedDays = Object.keys(grouped)
-      .map(Number)
-      .sort((a, b) => a - b);
-
-    const result: { day: number; times: string[] }[] = [];
-    sortedDays.forEach((day) => {
-      const times = grouped[day].sort();
-      result.push({ day, times });
-    });
-
-    return result;
   };
 
   return (
@@ -605,47 +562,7 @@ export default function ScheduleForm({
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {/* Selected Time Slots */}
-            <div>
-              <label
-                className="block text-white font-medium mb-3"
-                style={{ fontFamily: "Inter, sans-serif" }}
-              >
-                Selected Time Slots
-              </label>
-              <div className="space-y-3">
-                {groupSlotsByDay().map(({ day, times }) => (
-                  <div key={day} className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="w-4 h-4 text-white/70" />
-                      <span
-                        className="text-white font-medium text-sm"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        {DAYS[day]}
-                      </span>
-                    </div>
-                    <div className="overflow-x-auto scrollbar-hide">
-                      <div className="flex space-x-2 pb-1 min-w-max">
-                        {times.map((time) => (
-                          <div
-                            key={`${day}-${time}`}
-                            className="flex items-center space-x-1.5 px-3 py-2 bg-white/10 rounded-full border border-white/20 whitespace-nowrap"
-                          >
-                            <Clock className="w-3.5 h-3.5 text-white/70 flex-shrink-0" />
-                            <span
-                              className="text-white text-sm"
-                              style={{ fontFamily: "Inter, sans-serif" }}
-                            >
-                              {formatTime(time)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SelectedSlotsGrid selectedSlots={selectedSlots} />
 
             {/* Show Name */}
             <div>

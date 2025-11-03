@@ -81,66 +81,66 @@ const generateRandomParticipants = (
 };
 
 // Mock data for shows
-const mockShows: ScheduledShow[] = [
-  {
-    id: "1",
-    showName: "Crypto Weekly Roundup",
-    description:
-      "Weekly discussion on the latest crypto trends, market analysis, and emerging projects",
-    coverImage: "/images/mock/1.jpg",
-    duration: 60,
-    schedule: [
-      { date: "2024-01-15", time: "15:00" },
-      { date: "2024-01-22", time: "15:00" },
-      { date: "2024-01-29", time: "15:00" },
-    ],
-    status: "live",
-    participants: generateRandomParticipants(2),
-  },
-  {
-    id: "2",
-    showName: "DeFi Deep Dive",
-    description:
-      "Technical analysis of DeFi protocols, yield farming strategies, and risk assessment",
-    coverImage: "/images/mock/3.png",
-    duration: 90,
-    schedule: [
-      { date: "2024-01-16", time: "18:00" },
-      { date: "2024-01-18", time: "18:00" },
-      { date: "2024-01-20", time: "18:00" },
-    ],
-    status: "viral",
-    participants: generateRandomParticipants(1),
-  },
-  {
-    id: "3",
-    showName: "NFT Market Watch",
-    description:
-      "Exploring NFT collections, artist spotlights, and marketplace trends",
-    coverImage: "/images/mock/2.jpg",
-    duration: 45,
-    schedule: [
-      { date: "2024-01-19", time: "20:00" },
-      { date: "2024-01-26", time: "20:00" },
-    ],
-    status: "trending",
-    participants: generateRandomParticipants(3),
-  },
-  {
-    id: "4",
-    showName: "Blockchain Builders",
-    description:
-      "Interviews with developers, founders, and innovators in the blockchain space",
-    coverImage: "/images/mock/4.jpg",
-    duration: 75,
-    schedule: [
-      { date: "2024-01-17", time: "16:30" },
-      { date: "2024-01-19", time: "16:30" },
-    ],
-    status: "upcoming",
-    participants: generateRandomParticipants(2),
-  },
-];
+// const mockShows: ScheduledShow[] = [
+//   {
+//     id: "1",
+//     showName: "Crypto Weekly Roundup",
+//     description:
+//       "Weekly discussion on the latest crypto trends, market analysis, and emerging projects",
+//     coverImage: "/images/mock/1.jpg",
+//     duration: 60,
+//     schedule: [
+//       { day: "Tuesday", time: "15:00" },
+//       { day: "Tuesday", time: "15:00" },
+//       { day: "Tuesday", time: "15:00" },
+//     ],
+//     status: "live",
+//     participants: generateRandomParticipants(2),
+//   },
+//   {
+//     id: "2",
+//     showName: "DeFi Deep Dive",
+//     description:
+//       "Technical analysis of DeFi protocols, yield farming strategies, and risk assessment",
+//     coverImage: "/images/mock/3.png",
+//     duration: 90,
+//     schedule: [
+//       { day: "Tuesday", time: "18:00" },
+//       { day: "Thursday", time: "18:00" },
+//       { day: "Saturday", time: "18:00" },
+//     ],
+//     status: "viral",
+//     participants: generateRandomParticipants(1),
+//   },
+//   {
+//     id: "3",
+//     showName: "NFT Market Watch",
+//     description:
+//       "Exploring NFT collections, artist spotlights, and marketplace trends",
+//     coverImage: "/images/mock/2.jpg",
+//     duration: 45,
+//     schedule: [
+//       { day: "Friday", time: "20:00" },
+//       { day: "Friday", time: "20:00" },
+//     ],
+//     status: "trending",
+//     participants: generateRandomParticipants(3),
+//   },
+//   {
+//     id: "4",
+//     showName: "Blockchain Builders",
+//     description:
+//       "Interviews with developers, founders, and innovators in the blockchain space",
+//     coverImage: "/images/mock/4.jpg",
+//     duration: 75,
+//     schedule: [
+//       { day: "Wednesday", time: "16:30" },
+//       { day: "Friday", time: "16:30" },
+//     ],
+//     status: "upcoming",
+//     participants: generateRandomParticipants(2),
+//   },
+// ];
 
 // Mock analytics data
 const mockAnalytics: Record<string, ShowAnalytics> = {
@@ -260,18 +260,39 @@ const mockAnalytics: Record<string, ShowAnalytics> = {
   },
 };
 
-const getDayName = (date: string): string => {
-  const dayNames = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const dayIndex = new Date(date).getDay();
-  return dayNames[dayIndex];
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const getDayName = (day: string | number): string => {
+  if (typeof day === "number" && Number.isFinite(day)) {
+    const normalized = Math.round(day);
+    return DAY_NAMES[((normalized % 7) + 7) % 7];
+  }
+
+  if (typeof day === "string") {
+    const trimmed = day.trim();
+    if (!trimmed) return "";
+
+    const lower = trimmed.toLowerCase();
+    const exactMatch = DAY_NAMES.find((name) => name.toLowerCase() === lower);
+    if (exactMatch) return exactMatch;
+
+    const shortMatch = DAY_NAMES.find(
+      (name) => name.slice(0, 3).toLowerCase() === lower.slice(0, 3)
+    );
+    if (shortMatch) return shortMatch;
+
+    return trimmed;
+  }
+
+  return "";
 };
 
 const formatTime = (time: string): string => {
@@ -286,19 +307,29 @@ const formatSchedule = (show: ScheduledShow): string => {
   if (show.schedule.length === 0) return "No schedule";
 
   if (show.schedule.length === 1) {
-    const { date, time } = show.schedule[0];
-    return `${getDayName(date).slice(0, 3)} • ${formatTime(time)}`;
+    const { day, time } = show.schedule[0];
+    return `${getDayName(day).slice(0, 3)} • ${formatTime(time)}`;
   }
 
-  // For multiple dates, show the pattern
-  const days = show.schedule.map(({ date }) => getDayName(date).slice(0, 3));
-  const uniqueDays = [...new Set(days)];
+  // Group schedule by time
+  const scheduleByTime = show.schedule.reduce((acc, slot) => {
+    if (!acc[slot.time]) {
+      acc[slot.time] = [];
+    }
+    acc[slot.time].push(getDayName(slot.day));
+    return acc;
+  }, {} as Record<string, string[]>);
 
-  if (uniqueDays.length === 1) {
-    return `${uniqueDays[0]} • ${formatTime(show.schedule[0].time)}`;
-  }
+  // Build formatted string - group days by their common times
+  const timeEntries = Object.entries(scheduleByTime).map(([time, days]) => {
+    const uniqueDays = [...new Set(days)];
+    const dayNames = uniqueDays
+      .map((day) => getDayName(day).slice(0, 3))
+      .join(", ");
+    return `${dayNames} • ${formatTime(time)}`;
+  });
 
-  return `${uniqueDays.join(", ")} • ${formatTime(show.schedule[0].time)}`;
+  return timeEntries.join(" & ");
 };
 
 export default function ShowsPage() {

@@ -90,7 +90,7 @@ export default function Hosts() {
     const admin = showData.participants
       ?.filter((p) => p.admin)
       .find((p) => p.twitterScreenName === twitterObj?.username);
-    if (!admin) {
+    if (showData.participants?.length && !admin) {
       alert("You are not an admin of the submitted space");
       return;
     }
