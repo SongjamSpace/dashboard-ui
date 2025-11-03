@@ -63,7 +63,8 @@ const getReferenceDateForLocalDay = (dayIndex: number): Date => {
   return reference;
 };
 
-const getReferenceDateForUtcDay = (utcDayIndex: number): Date => {
+const getReferenceDateForUtcDay = (utcDay: number | string): Date => {
+  const utcDayIndex = normalizeDayIndex(utcDay);
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   const diff = (utcDayIndex + 7 - today.getUTCDay()) % 7;
@@ -93,7 +94,6 @@ const convertLocalDayTimeToUTC = (
   return {
     dayIndex,
     dayName: toDayName(dayIndex),
-    utcDayIndex,
     utcDayName: toDayName(utcDayIndex),
     utcTime,
   };
@@ -104,7 +104,7 @@ const convertUtcDayTimeToLocal = (
   utcTime: string
 ) => {
   const utcDayIndex = normalizeDayIndex(utcDay);
-  const reference = getReferenceDateForUtcDay(utcDayIndex);
+  const reference = getReferenceDateForUtcDay(utcDay ?? utcDayIndex);
   const [hoursStr = "0", minutesStr = "0"] = utcTime.split(":");
   const hours = parseInt(hoursStr, 10);
   const minutes = parseInt(minutesStr, 10);
@@ -118,7 +118,6 @@ const convertUtcDayTimeToLocal = (
   )}`;
 
   return {
-    utcDayIndex,
     utcDayName: toDayName(utcDayIndex),
     dayIndex,
     dayName: toDayName(dayIndex),
@@ -132,7 +131,6 @@ type ScheduleInput = {
   dayIndex?: number;
   time?: string;
   utcDay?: number | string;
-  utcDayIndex?: number;
   utcTime?: string;
   date?: string;
 };
@@ -141,7 +139,6 @@ export interface ScheduleSlot {
   day: string;
   time: string;
   utcDay?: string;
-  utcDayIndex?: number;
   utcTime?: string;
 }
 
@@ -169,12 +166,7 @@ const normalizeScheduleEntry = (
   }
 
   if (typeof slot.utcTime === "string") {
-    const utcSourceDay =
-      slot.utcDayIndex !== undefined
-        ? slot.utcDayIndex
-        : slot.utcDay !== undefined
-        ? slot.utcDay
-        : undefined;
+    const utcSourceDay = slot.utcDay !== undefined ? slot.utcDay : undefined;
 
     if (dayIndex === undefined || !time) {
       const derived = convertUtcDayTimeToLocal(utcSourceDay, slot.utcTime);
@@ -195,17 +187,15 @@ const normalizeScheduleEntry = (
     time = "00:00";
   }
 
-  const {
-    utcDayIndex,
-    utcDayName,
-    utcTime: normalizedUtcTime,
-  } = convertLocalDayTimeToUTC(dayIndex, time);
+  const { utcDayName, utcTime: normalizedUtcTime } = convertLocalDayTimeToUTC(
+    dayIndex,
+    time
+  );
 
   return {
     day: toDayName(dayIndex),
     time,
     utcDay: utcDayName,
-    utcDayIndex,
     utcTime: normalizedUtcTime,
   };
 };
@@ -218,7 +208,25 @@ function convertScheduleFromUTCToLocal(
   schedule: ScheduleInput[] | undefined
 ): ScheduleSlot[] {
   if (!schedule) return [];
-  return schedule.map((entry) => normalizeScheduleEntry(entry));
+  return schedule.map((entry) => {
+    // If we have UTC values, always convert them to viewer's local timezone
+    // This ensures viewers see the correct time regardless of where they are
+    if (
+      entry &&
+      typeof entry.utcTime === "string" &&
+      entry.utcDay !== undefined
+    ) {
+      const converted = convertUtcDayTimeToLocal(entry.utcDay, entry.utcTime);
+      return {
+        day: converted.dayName,
+        time: converted.time,
+        utcDay: converted.utcDayName,
+        utcTime: entry.utcTime,
+      };
+    }
+    // Fallback to normalizeScheduleEntry for backward compatibility
+    return normalizeScheduleEntry(entry);
+  });
 }
 
 // User interface for show creators
