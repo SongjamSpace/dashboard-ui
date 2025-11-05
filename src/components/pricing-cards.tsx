@@ -35,7 +35,7 @@ export default function PricingCards({
         <div>
           <h3
             className="text-xl md:text-2xl font-bold text-white"
-            style={{ fontFamily: "Orbitron, sans-serif" }}
+            style={{ fontFamily: "Inter, sans-serif" }}
           >
             Select Your Package
           </h3>
@@ -60,40 +60,44 @@ export default function PricingCards({
             transition={{ delay: 0.05 * idx }}
             whileHover={{ y: -4 }}
           >
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h4
-                  className="text-lg font-semibold text-white"
-                  style={{ fontFamily: "Orbitron, sans-serif" }}
-                >
-                  {card.label}
-                </h4>
-                {card.description && (
-                  <p className="text-white/70 text-xs">{card.description}</p>
-                )}
-              </div>
-              <div
-                className="text-xl font-bold text-white"
+            <div className="mb-4">
+              <h4
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: "Inter, sans-serif" }}
               >
-                {card.pricing >= 0 ? `$${card.pricing}` : "Contact"}
-              </div>
+                {card.label}
+              </h4>
+              {card.description && (
+                <p className="text-white text-sm leading-relaxed mb-4">
+                  {card.description}
+                </p>
+              )}
             </div>
 
             {Array.isArray(card.includedServices) &&
               card.includedServices.length > 0 && (
-                <ul className="space-y-2 mb-4">
-                  {card.includedServices.map((item) => (
-                    <li key={item} className="flex items-start gap-2">
-                      <Check className="w-4 h-4 mt-0.5 text-emerald-400" />
-                      <span className="text-white/80 text-sm">{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="flex-1">
+                  <h5
+                    className="text-base font-semibold text-white mb-3"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    What's Included
+                  </h5>
+                  <ul className="space-y-3 mb-6">
+                    {card.includedServices.map((item) => (
+                      <li key={item} className="flex items-start gap-3">
+                        <Check className="w-5 h-5 mt-0.5 text-emerald-400 flex-shrink-0" />
+                        <span className="text-white/90 text-sm leading-relaxed">
+                          {item}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
             <motion.button
-              className={`w-full mt-auto flex items-center justify-center gap-2 font-semibold py-2 px-4 rounded-lg transition-all duration-200 text-white ${
+              className={`w-full mt-auto flex flex-col items-center justify-center gap-1 font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-white ${
                 isBooked
                   ? "bg-emerald-600/80 cursor-not-allowed"
                   : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
@@ -105,16 +109,21 @@ export default function PricingCards({
               disabled={Boolean(disabled || bookingLoading || isBooked)}
             >
               {bookingLoading ? (
-                <>
+                <div className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Booking...
-                </>
+                </div>
               ) : isBooked ? (
-                <>
+                <div className="flex items-center gap-2">
                   <Check className="w-4 h-4" /> Booked
-                </>
+                </div>
               ) : (
                 <>
-                  <Calendar className="w-4 h-4" /> Book
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> Book Now
+                  </div>
+                  <div className="text-lg font-bold">
+                    {card.pricing >= 0 ? `$${card.pricing}` : "Contact Us"}
+                  </div>
                 </>
               )}
             </motion.button>
