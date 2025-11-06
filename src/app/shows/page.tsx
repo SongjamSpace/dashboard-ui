@@ -31,10 +31,14 @@ import {
   createShowBooking,
   getShowBooking,
 } from "@/services/db/showBookings.db";
-import { sendUsdtPayment } from "@/lib/usdt-payment";
+import BookingDialog from "@/components/booking-dialog";
 
 const WALLET_CONNECTION_POLL_MS = 500;
 const WALLET_CONNECTION_TIMEOUT_MS = 45_000;
+
+// Payment configuration constants
+const USDT_CONTRACT_ADDRESS = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+const DEFAULT_PAYOUT_ADDRESS = "0x80C430858e5120A293C060243d555f570Ab0B04D";
 
 // Using ScheduledShow type from db
 
@@ -341,6 +345,12 @@ export default function ShowsPage() {
   const [hasBookedSelectedShow, setHasBookedSelectedShow] = useState(false);
   const [bookingStatusLoading, setBookingStatusLoading] = useState(false);
   const [bookingActionLoading, setBookingActionLoading] = useState(false);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<{
+    tierId: string;
+    amount: number;
+    payoutAddress: string;
+  } | null>(null);
   const { connectWallet } = useConnectWallet();
   const { wallets, ready: walletsReady } = useWallets();
   const walletsRef = useRef<ConnectedWallet[]>([]);
@@ -487,45 +497,70 @@ export default function ShowsPage() {
     }
 
     const requiresPayment = tier.pricing > 0;
-    const payoutAddress = selectedShow.payoutAddress?.trim();
-    const ethUsdtAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+    const payoutAddress =
+      selectedShow.payoutAddress?.trim() || DEFAULT_PAYOUT_ADDRESS;
 
-    if (requiresPayment) {
-      if (!payoutAddress) {
-        console.error("No payout address configured for this show");
-        return;
-      }
+    // If no payment required, book directly
+    if (!requiresPayment) {
+      try {
+        setBookingActionLoading(true);
+        const booking = await createShowBooking({
+          show: selectedShow,
+          tierLabel: tierId,
+          user: {
+            uid: user?.uid ?? null,
+            twitterId: String(twitterObj.twitterId),
+            twitterHandle: twitterObj.username
+              ? String(twitterObj.username)
+              : null,
+            displayName:
+              twitterObj.name != null
+                ? String(twitterObj.name)
+                : user?.displayName ?? null,
+          },
+        });
 
-      if (!ethUsdtAddress) {
-        console.error("No USDT contract address configured");
-        return;
+        if (booking) {
+          setHasBookedSelectedShow(true);
+        }
+      } catch (error) {
+        console.error("Failed to complete show booking flow", error);
+      } finally {
+        setBookingActionLoading(false);
       }
+      return;
+    }
+
+    // Payment required - validate and open dialog
+    if (!payoutAddress) {
+      console.error("No payout address configured for this show");
+      return;
+    }
+
+    // Ensure wallet is connected before opening dialog
+    try {
+      await ensureWalletConnected();
+      setSelectedTier({
+        tierId,
+        amount: tier.pricing,
+        payoutAddress,
+      });
+      setBookingDialogOpen(true);
+    } catch (error) {
+      console.error("Failed to connect wallet", error);
+    }
+  };
+
+  const handlePaymentComplete = async (transferTxHash: string) => {
+    if (!selectedTier || !selectedShow?.id || !twitterObj?.twitterId) {
+      return;
     }
 
     try {
       setBookingActionLoading(true);
-
-      let paymentTxHash: string | undefined;
-
-      if (requiresPayment) {
-        const wallet = await ensureWalletConnected();
-        try {
-          const { transferTxHash } = await sendUsdtPayment({
-            wallet,
-            payoutAddress: "0x80C430858e5120A293C060243d555f570Ab0B04D",
-            usdtContractAddress: ethUsdtAddress!,
-            amount: tier.pricing,
-          });
-          paymentTxHash = transferTxHash;
-        } catch (paymentError) {
-          console.error("Failed to process USDT payment", paymentError);
-          throw paymentError;
-        }
-      }
-
       const booking = await createShowBooking({
         show: selectedShow,
-        tierLabel: tierId,
+        tierLabel: selectedTier.tierId,
         user: {
           uid: user?.uid ?? null,
           twitterId: String(twitterObj.twitterId),
@@ -541,18 +576,23 @@ export default function ShowsPage() {
 
       if (booking) {
         setHasBookedSelectedShow(true);
-        if (requiresPayment) {
-          console.info(
-            "Booking confirmed with payment transaction",
-            paymentTxHash
-          );
-        }
+        console.info(
+          "Booking confirmed with payment transaction",
+          transferTxHash
+        );
+        setBookingDialogOpen(false);
+        setSelectedTier(null);
       }
     } catch (error) {
-      console.error("Failed to complete show booking flow", error);
+      console.error("Failed to complete show booking after payment", error);
     } finally {
       setBookingActionLoading(false);
     }
+  };
+
+  const handlePaymentError = (error: Error) => {
+    console.error("Payment error:", error);
+    // You could show a toast notification here
   };
 
   return (
@@ -744,6 +784,20 @@ export default function ShowsPage() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Booking Dialog */}
+      {selectedTier && wallets.find((w) => w.type === "ethereum") && (
+        <BookingDialog
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
+          amount={selectedTier.amount}
+          payoutAddress={selectedTier.payoutAddress}
+          usdtContractAddress={USDT_CONTRACT_ADDRESS}
+          wallet={wallets.find((w) => w.type === "ethereum")!}
+          onComplete={handlePaymentComplete}
+          onError={handlePaymentError}
+        />
+      )}
     </div>
   );
 }

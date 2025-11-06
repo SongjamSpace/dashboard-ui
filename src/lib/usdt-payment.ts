@@ -63,24 +63,11 @@ export interface SendUsdtPaymentResult {
   transferTxHash: string;
 }
 
-export const sendUsdtPayment = async (
-  params: SendUsdtPaymentParams
-): Promise<SendUsdtPaymentResult> => {
-  const { wallet, payoutAddress, usdtContractAddress, amount, chainIdOverride } =
-    params;
-
-  if (!ethers.isAddress(payoutAddress)) {
-    throw new Error("Invalid payout address configured for this show");
-  }
-
-  if (!ethers.isAddress(usdtContractAddress)) {
-    throw new Error("Invalid USDT contract address configuration");
-  }
-
-  if (amount <= 0) {
-    throw new Error("Transfer amount must be greater than zero");
-  }
-
+async function getUsdtContract(
+  wallet: ConnectedWallet,
+  usdtContractAddress: string,
+  chainIdOverride?: string
+) {
   const chainConfig = parseChainId(chainIdOverride);
 
   let providerSource = await wallet.getEthereumProvider();
@@ -124,26 +111,119 @@ export const sendUsdtPayment = async (
     );
   }
 
-  const transferAmount = ethers.parseUnits(
-    amount.toString(),
-    tokenDecimals
+  return { usdtContract, tokenDecimals };
+}
+
+export interface ApproveUsdtPaymentParams {
+  wallet: ConnectedWallet;
+  payoutAddress: string;
+  usdtContractAddress: string;
+  amount: number;
+  chainIdOverride?: string;
+}
+
+export interface ApproveUsdtPaymentResult {
+  approvalTxHash: string;
+}
+
+export const approveUsdtPayment = async (
+  params: ApproveUsdtPaymentParams
+): Promise<ApproveUsdtPaymentResult> => {
+  const {
+    wallet,
+    payoutAddress,
+    usdtContractAddress,
+    amount,
+    chainIdOverride,
+  } = params;
+
+  if (!ethers.isAddress(payoutAddress)) {
+    throw new Error("Invalid payout address configured for this show");
+  }
+
+  if (!ethers.isAddress(usdtContractAddress)) {
+    throw new Error("Invalid USDT contract address configuration");
+  }
+
+  if (amount <= 0) {
+    throw new Error("Transfer amount must be greater than zero");
+  }
+
+  const { usdtContract, tokenDecimals } = await getUsdtContract(
+    wallet,
+    usdtContractAddress,
+    chainIdOverride
   );
 
-  const approvalTx = await usdtContract.approve(
-    payoutAddress,
-    transferAmount
-  );
+  const transferAmount = ethers.parseUnits(amount.toString(), tokenDecimals);
+
+  const approvalTx = await usdtContract.approve(payoutAddress, transferAmount);
   const approvalReceipt = await approvalTx.wait();
-
-  const transferTx = await usdtContract.transfer(
-    payoutAddress,
-    transferAmount
-  );
-  const transferReceipt = await transferTx.wait();
 
   return {
     approvalTxHash: approvalReceipt?.hash ?? approvalTx.hash,
+  };
+};
+
+export interface TransferUsdtPaymentParams {
+  wallet: ConnectedWallet;
+  payoutAddress: string;
+  usdtContractAddress: string;
+  amount: number;
+  chainIdOverride?: string;
+}
+
+export interface TransferUsdtPaymentResult {
+  transferTxHash: string;
+}
+
+export const transferUsdtPayment = async (
+  params: TransferUsdtPaymentParams
+): Promise<TransferUsdtPaymentResult> => {
+  const {
+    wallet,
+    payoutAddress,
+    usdtContractAddress,
+    amount,
+    chainIdOverride,
+  } = params;
+
+  if (!ethers.isAddress(payoutAddress)) {
+    throw new Error("Invalid payout address configured for this show");
+  }
+
+  if (!ethers.isAddress(usdtContractAddress)) {
+    throw new Error("Invalid USDT contract address configuration");
+  }
+
+  if (amount <= 0) {
+    throw new Error("Transfer amount must be greater than zero");
+  }
+
+  const { usdtContract, tokenDecimals } = await getUsdtContract(
+    wallet,
+    usdtContractAddress,
+    chainIdOverride
+  );
+
+  const transferAmount = ethers.parseUnits(amount.toString(), tokenDecimals);
+
+  const transferTx = await usdtContract.transfer(payoutAddress, transferAmount);
+  const transferReceipt = await transferTx.wait();
+
+  return {
     transferTxHash: transferReceipt?.hash ?? transferTx.hash,
   };
 };
 
+export const sendUsdtPayment = async (
+  params: SendUsdtPaymentParams
+): Promise<SendUsdtPaymentResult> => {
+  const approvalResult = await approveUsdtPayment(params);
+  const transferResult = await transferUsdtPayment(params);
+
+  return {
+    approvalTxHash: approvalResult.approvalTxHash,
+    transferTxHash: transferResult.transferTxHash,
+  };
+};

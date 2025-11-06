@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Crown,
 } from "lucide-react";
+import { useWallets } from "@privy-io/react-auth";
 import type { ParticipantProfile, ScheduledShow } from "@/services/db/shows.db";
 import PricingCards from "@/components/pricing-cards";
 
@@ -127,6 +128,9 @@ export default function ShowDetails({
   bookingDisabled,
   isBooked,
 }: ShowDetailsProps) {
+  const { wallets } = useWallets();
+  const ethereumWallet = wallets.find((wallet) => wallet.type === "ethereum");
+
   const normalizeHandle = (value?: string): string =>
     (value || "").replace(/^@/, "").trim().toLowerCase();
 
@@ -332,6 +336,7 @@ export default function ShowDetails({
         bookingLoading={bookingLoading}
         disabled={bookingDisabled}
         isBooked={isBooked}
+        connectedWalletAddress={ethereumWallet?.address}
       />
 
       {analytics && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, Calendar, Loader2 } from "lucide-react";
+import { Check, Calendar, Loader2, Wallet } from "lucide-react";
 import type { ScheduledShow as DBScheduledShow } from "@/services/db/shows.db";
 
 interface PricingCardsProps {
@@ -10,6 +10,7 @@ interface PricingCardsProps {
   bookingLoading?: boolean;
   isBooked?: boolean;
   disabled?: boolean;
+  connectedWalletAddress?: string;
 }
 
 export default function PricingCards({
@@ -18,6 +19,7 @@ export default function PricingCards({
   bookingLoading,
   isBooked,
   disabled,
+  connectedWalletAddress,
 }: PricingCardsProps) {
   const cards = show.pricingCards || [];
 
@@ -29,9 +31,14 @@ export default function PricingCards({
     if (onBook) onBook(cardTitle, show);
   };
 
+  const formatWalletAddress = (address: string): string => {
+    if (!address || address.length < 10) return address;
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
   return (
     <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
           <h3
             className="text-xl md:text-2xl font-bold text-white"
@@ -46,6 +53,25 @@ export default function PricingCards({
             Choose a tier to promote with {show.showName}
           </p>
         </div>
+        {connectedWalletAddress && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/20 rounded-lg">
+            <Wallet className="w-4 h-4 text-purple-400" />
+            <div className="flex flex-col items-end">
+              <span
+                className="text-white text-sm font-medium"
+                style={{ fontFamily: "Inter, sans-serif" }}
+              >
+                {formatWalletAddress(connectedWalletAddress)}
+              </span>
+              <span
+                className="text-white/60 text-xs"
+                style={{ fontFamily: "Inter, sans-serif" }}
+              >
+                Ethereum Network
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
