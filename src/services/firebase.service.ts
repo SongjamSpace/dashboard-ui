@@ -4,7 +4,6 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
-import { getAnalytics, logEvent, isSupported } from "firebase/analytics";
 // import { getStripePayments } from "@invertase/firestore-stripe-payments";
 // import { getAnalytics } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -26,16 +25,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Initialize analytics only on client side
-let analytics: any = null;
-if (typeof window !== "undefined") {
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  });
-}
-
 // const payments = getStripePayments(app, {
 //   productsCollection: "products",
 //   customersCollection: "customers",
@@ -45,21 +34,4 @@ if (typeof window !== "undefined") {
 //   content_id: spotifyArtistId,
 // });
 
-const logFirebaseEvent = (
-  type:
-    | "login"
-    | "purchase"
-    | "select_content"
-    | "sign_up"
-    | "space_limit_reached"
-    | "analyze_broadcast"
-    | "analyze_space"
-    | "dm_limit_reached",
-  additionalParams: any
-) => {
-  if (analytics) {
-    logEvent(analytics, type as any, additionalParams);
-  }
-};
-
-export { app, db, storage, auth, logFirebaseEvent };
+export { app, db, storage, auth };
