@@ -156,7 +156,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   style: "Communication Style",
 };
 
-export function CreateVoiceForm() {
+export function CreateVoiceForm({ onBack }: { onBack: () => void }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [selectedChips, setSelectedChips] = useState<Set<string>>(new Set());
@@ -171,16 +171,14 @@ export function CreateVoiceForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removeBackgroundNoise, setRemoveBackgroundNoise] = useState(true);
-  const [createdVoices, setCreatedVoices] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingIntervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isRecordingRef = useRef<boolean>(false);
+  const recordingTimeRef = useRef<number>(0);
 
   const handleFileUpload = useCallback((file: File) => {
     // Validate file type
@@ -245,6 +243,7 @@ export function CreateVoiceForm() {
     setAudioUrl(null);
     setAudioDuration(0);
     setRecordingTime(0);
+    recordingTimeRef.current = 0;
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -259,6 +258,7 @@ export function CreateVoiceForm() {
         clearInterval(recordingIntervalRef.current);
         recordingIntervalRef.current = null;
       }
+      recordingTimeRef.current = 0;
     }
   }, []);
 
@@ -297,33 +297,13 @@ export function CreateVoiceForm() {
       mediaRecorder.start();
       isRecordingRef.current = true;
       setIsRecording(true);
-      setRecordingTime(0);
-
-      // Start timer - use a function that directly updates state
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime((prev) => {
-          const newTime = prev + 1;
-          // Auto-stop at 30 seconds
-          if (newTime >= 30) {
-            if (recordingIntervalRef.current) {
-              clearInterval(recordingIntervalRef.current);
-              recordingIntervalRef.current = null;
-            }
-            if (mediaRecorderRef.current && isRecordingRef.current) {
-              mediaRecorderRef.current.stop();
-              isRecordingRef.current = false;
-              setIsRecording(false);
-            }
-            return 30;
-          }
-          return newTime;
-        });
-      }, 1000);
+      // Timer will be managed by useEffect when isRecording becomes true
     } catch (error) {
       console.error("Error starting recording:", error);
       alert("Failed to access microphone. Please check permissions.");
       isRecordingRef.current = false;
       setIsRecording(false);
+      recordingTimeRef.current = 0;
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
         recordingIntervalRef.current = null;
@@ -466,21 +446,12 @@ export function CreateVoiceForm() {
       }
 
       // Step 2: Create voice document in Firestore with ElevenLabs voice ID (no storage upload)
-      const voiceDocId = await createVoiceWithElevenLabsId(
+      await createVoiceWithElevenLabsId(
         name.trim(),
         personality.trim(),
         elevenLabsVoiceID,
         audioDuration > 0 ? audioDuration : undefined
       );
-
-      // Step 3: Store in localStorage
-      const newVoice = { id: elevenLabsVoiceID, name: name.trim() };
-      const updatedVoices = [...createdVoices, newVoice];
-      setCreatedVoices(updatedVoices);
-      localStorage.setItem("createdVoices", JSON.stringify(updatedVoices));
-
-      // Dispatch custom event to notify other components
-      window.dispatchEvent(new CustomEvent("voicesUpdated"));
 
       // Success - reset form
       setName("");
@@ -493,10 +464,12 @@ export function CreateVoiceForm() {
       setAudioUrl(null);
       setAudioDuration(0);
       setRecordingTime(0);
+      recordingTimeRef.current = 0;
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
       setError(null);
+      onBack();
     } catch (err) {
       console.error("Error creating voice agent:", err);
       setError(err instanceof Error ? err.message : "Failed to create voice");
@@ -510,20 +483,67 @@ export function CreateVoiceForm() {
     audioDuration,
     audioUrl,
     removeBackgroundNoise,
-    createdVoices,
   ]);
 
-  // Load created voices from localStorage on mount (needed for saving logic)
+  // Timer effect - manages recording timer when isRecording is true
   useEffect(() => {
-    const stored = localStorage.getItem("createdVoices");
-    if (stored) {
-      try {
-        setCreatedVoices(JSON.parse(stored));
-      } catch (error) {
-        console.error("Error parsing stored voices:", error);
+    if (!isRecording) {
+      // Clear interval when not recording
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
       }
+      return;
     }
-  }, []);
+
+    // Clear any existing interval
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+
+    // Reset timer
+    recordingTimeRef.current = 0;
+    setRecordingTime(0);
+
+    // Start timer - use window.setInterval for explicit browser API
+    recordingIntervalRef.current = window.setInterval(() => {
+      if (!isRecordingRef.current) {
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+          recordingIntervalRef.current = null;
+        }
+        return;
+      }
+
+      recordingTimeRef.current += 1;
+      const newTime = recordingTimeRef.current;
+
+      // Force state update
+      setRecordingTime(newTime);
+
+      // Auto-stop at 30 seconds
+      if (newTime >= 30) {
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+          recordingIntervalRef.current = null;
+        }
+        if (mediaRecorderRef.current && isRecordingRef.current) {
+          mediaRecorderRef.current.stop();
+          isRecordingRef.current = false;
+          setIsRecording(false);
+        }
+      }
+    }, 1000);
+
+    // Cleanup
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+    };
+  }, [isRecording]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -566,7 +586,7 @@ export function CreateVoiceForm() {
           {/* Audio Upload/Record Area */}
           <div className="space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <Label>Audio Note (30 seconds) *</Label>
+              <Label>Audio Note (10-30 seconds) *</Label>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -690,6 +710,34 @@ export function CreateVoiceForm() {
               )}
             </div>
           </div>
+
+          {/* Recording Tips */}
+          {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-lg border border-border/50 bg-muted/30">
+              <h4 className="text-sm font-semibold text-foreground mb-2">
+                Avoid noisy environments
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Background sounds interfere with recording quality results.
+              </p>
+            </div>
+            <div className="p-4 rounded-lg border border-border/50 bg-muted/30">
+              <h4 className="text-sm font-semibold text-foreground mb-2">
+                Check microphone quality
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Try external units or headphone mics for better audio capture.
+              </p>
+            </div>
+            <div className="p-4 rounded-lg border border-border/50 bg-muted/30">
+              <h4 className="text-sm font-semibold text-foreground mb-2">
+                Use consistent equipment
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Don't change recording equipment between samples.
+              </p>
+            </div>
+          </div> */}
 
           {/* Personality/Prompt Area */}
           <div className="space-y-4">

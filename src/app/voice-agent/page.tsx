@@ -34,6 +34,7 @@ import { Orb } from "@/components/ui/orb";
 import { Response } from "@/components/ui/response";
 import { ShimmeringText } from "@/components/ui/shimmering-text";
 import { CreateVoiceForm } from "@/components/create-voice-form";
+import { getAllVoices } from "@/services/db/voices.db";
 // import {
 //   Tooltip,
 //   TooltipContent,
@@ -125,7 +126,10 @@ export default function Page() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [createdVoices, setCreatedVoices] = useState<CreatedVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>("Songjam");
+  const [selectedVoice, setSelectedVoice] = useState<CreatedVoice>({
+    id: "4tRn1lSkEn13EVTuqb0g",
+    name: "Songjam",
+  });
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const isTextOnlyModeRef = useRef<boolean>(true);
 
@@ -202,20 +206,20 @@ export default function Page() {
           agentId,
           connectionType: textOnly ? "websocket" : "webrtc",
           dynamicVariables: {
-            agent_voice_name: selectedVoice,
+            agent_voice_name: selectedVoice.name,
             petcare_name: "Snuffle Pet Services",
           },
-          // overrides: {
-          //   tts: {
-          //     voiceId: "serafina",
-          //   },
-          //   //   conversation: {
-          //   //     textOnly: textOnly,
-          //   //   },
-          //   //   agent: {
-          //   //     firstMessage: textOnly ? "" : undefined,
-          //   //   },
-          // },
+          overrides: {
+            tts: {
+              voiceId: selectedVoice.id,
+            },
+            //   conversation: {
+            //     textOnly: textOnly,
+            //   },
+            //   agent: {
+            //     firstMessage: textOnly ? "" : undefined,
+            //   },
+          },
           onStatusChange: (status) => setAgentState(status.status),
         });
       } catch (error) {
@@ -224,7 +228,7 @@ export default function Page() {
         setMessages([]);
       }
     },
-    [conversation, getMicStream, selectedVoice]
+    [conversation, getMicStream, selectedVoice.id, selectedVoice.name]
   );
 
   const handleCall = useCallback(async () => {
@@ -297,43 +301,48 @@ export default function Page() {
     [handleSendText]
   );
 
-  // Load created voices from localStorage on mount
+  // Load created voices from Firestore
   useEffect(() => {
-    const loadVoices = () => {
-      const stored = localStorage.getItem("createdVoices");
-      if (stored) {
-        try {
-          const voices = JSON.parse(stored);
-          setCreatedVoices(voices);
-        } catch (error) {
-          console.error("Error parsing stored voices:", error);
-        }
+    const loadVoices = async () => {
+      try {
+        const voices = await getAllVoices();
+        // Filter voices that have elevenLabsVoiceID and map to CreatedVoice format
+        const createdVoicesData = voices
+          .filter((voice) => voice.elevenLabsVoiceID)
+          .map((voice) => ({
+            id: voice.elevenLabsVoiceID!,
+            name: voice.name,
+          }));
+        setCreatedVoices(createdVoicesData);
+      } catch (error) {
+        console.error("Error loading voices from Firestore:", error);
       }
     };
 
     loadVoices();
+  }, [activeTab]);
 
-    // Listen for storage changes (when new voices are created)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "createdVoices") {
-        loadVoices();
-      }
-    };
+  // Reload voices when switching to agent tab to get latest voices
+  useEffect(() => {
+    if (activeTab === "agent") {
+      const loadVoices = async () => {
+        try {
+          const voices = await getAllVoices();
+          const createdVoicesData = voices
+            .filter((voice) => voice.elevenLabsVoiceID)
+            .map((voice) => ({
+              id: voice.elevenLabsVoiceID!,
+              name: voice.name,
+            }));
+          setCreatedVoices(createdVoicesData);
+        } catch (error) {
+          console.error("Error loading voices from Firestore:", error);
+        }
+      };
 
-    window.addEventListener("storage", handleStorageChange);
-
-    // Also listen for custom event for same-tab updates
-    const handleCustomStorageChange = () => {
       loadVoices();
-    };
-
-    window.addEventListener("voicesUpdated", handleCustomStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("voicesUpdated", handleCustomStorageChange);
-    };
-  }, []);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     return () => {
@@ -619,42 +628,46 @@ export default function Page() {
               </Card>
 
               {/* Voice Selection */}
-              {createdVoices.length > 0 && (
-                <div className="space-y-3">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Select a voice to use:
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 justify-center">
+
+              <div className="space-y-3">
+                <div className="text-center">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Select a voice to use:
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    onClick={() =>
+                      setSelectedVoice({
+                        id: "4tRn1lSkEn13EVTuqb0g",
+                        name: "Songjam",
+                      })
+                    }
+                    className={cn(
+                      "px-4 py-2 rounded-lg border transition-all duration-200 text-sm font-medium",
+                      selectedVoice.id === "4tRn1lSkEn13EVTuqb0g"
+                        ? "bg-primary text-primary-foreground border-primary shadow-md"
+                        : "bg-background hover:bg-accent border-border text-foreground"
+                    )}
+                  >
+                    Songjam (Default)
+                  </button>
+                  {createdVoices.map((voice) => (
                     <button
-                      onClick={() => setSelectedVoice("Songjam")}
+                      key={voice.id}
+                      onClick={() => setSelectedVoice(voice)}
                       className={cn(
                         "px-4 py-2 rounded-lg border transition-all duration-200 text-sm font-medium",
-                        selectedVoice === "Songjam"
+                        selectedVoice.id === voice.id
                           ? "bg-primary text-primary-foreground border-primary shadow-md"
                           : "bg-background hover:bg-accent border-border text-foreground"
                       )}
                     >
-                      Songjam (Default)
+                      {voice.name}
                     </button>
-                    {createdVoices.map((voice) => (
-                      <button
-                        key={voice.id}
-                        onClick={() => setSelectedVoice(voice.name)}
-                        className={cn(
-                          "px-4 py-2 rounded-lg border transition-all duration-200 text-sm font-medium",
-                          selectedVoice === voice.name
-                            ? "bg-primary text-primary-foreground border-primary shadow-md"
-                            : "bg-background hover:bg-accent border-border text-foreground"
-                        )}
-                      >
-                        {voice.name}
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-              )}
+              </div>
             </motion.div>
           )}
 
@@ -679,7 +692,7 @@ export default function Page() {
                 </p>
               </div>
 
-              <CreateVoiceForm />
+              <CreateVoiceForm onBack={() => setActiveTab("agent")} />
             </motion.div>
           )}
         </AnimatePresence>
