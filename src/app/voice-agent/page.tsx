@@ -213,12 +213,12 @@ export default function Page() {
             tts: {
               voiceId: selectedVoice.id,
             },
-            //   conversation: {
-            //     textOnly: textOnly,
-            //   },
-            //   agent: {
-            //     firstMessage: textOnly ? "" : undefined,
-            //   },
+            conversation: {
+              textOnly,
+            },
+            agent: {
+              firstMessage: textOnly ? "" : undefined,
+            },
           },
           onStatusChange: (status) => setAgentState(status.status),
         });
