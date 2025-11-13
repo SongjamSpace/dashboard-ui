@@ -51,9 +51,7 @@ interface ChatMessage {
 }
 
 const DEFAULT_AGENT = {
-  agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID!,
   name: "Snuffle Pets",
-  description: "AI Voice Assistant",
 };
 
 type ChatActionsProps = ComponentProps<"div">;
@@ -186,7 +184,7 @@ export default function Page() {
       skipConnectingMessage: boolean = false
     ) => {
       try {
-        const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_IDl;
+        const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
         if (!agentId) {
           throw new Error("Agent ID is not set");
         }
