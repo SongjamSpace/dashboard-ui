@@ -5,14 +5,22 @@ import Navbar from "@/components/navbar";
 
 interface LoginScreenProps {
   login: () => void;
+  title: string;
+  subtitle: string;
+  description?: string;
 }
 
-export default function LoginScreen({ login }: LoginScreenProps) {
+export default function LoginScreen({
+  login,
+  title,
+  subtitle,
+  description = "Connect your Twitter/X account to access your Leaderboard, book or be booked and track X Space engagement metrics.",
+}: LoginScreenProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)]">
       {/* Navbar */}
       <div className="relative z-20 px-4 py-4">
-        <Navbar />
+        <Navbar hideNavigation={true} />
       </div>
 
       {/* Header */}
@@ -24,7 +32,7 @@ export default function LoginScreen({ login }: LoginScreenProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          Dealflow Dashboard
+          {title}
         </motion.h1>
         <motion.p
           className="text-xl max-w-4xl mx-auto drop-shadow-lg text-white/90 mb-8"
@@ -33,7 +41,7 @@ export default function LoginScreen({ login }: LoginScreenProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          Schedule a show, a shoutout, a season or more
+          {subtitle}
         </motion.p>
       </div>
 
@@ -56,8 +64,7 @@ export default function LoginScreen({ login }: LoginScreenProps) {
               className="text-white/80 mb-6"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              Connect your Twitter/X account to access your Dealflow dashboard,
-              book or be booked and track X Space engagement metrics.
+              {description}
             </p>
             <motion.button
               onClick={login}

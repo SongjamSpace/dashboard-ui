@@ -8,6 +8,8 @@ export const metadata: Metadata = {
     "Agentic CRM and AI-powered outreach for X Spaces. Supercharge your engagement and grow your audience with the power of verifiable human connection.",
 };
 
+import AppSidebar from "@/components/app-sidebar";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,9 +29,15 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">
-        {/* {children} */}
-        <Providers>{children}</Providers>
+      <body className="antialiased bg-[#343541]">
+        <Providers>
+          <div className="flex h-screen overflow-hidden">
+            <AppSidebar />
+            <main className="flex-1 overflow-y-auto relative">
+              {children}
+            </main>
+          </div>
+        </Providers>
       </body>
     </html>
   );

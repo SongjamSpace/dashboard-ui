@@ -599,7 +599,7 @@ export default function ShowsPage() {
     <div className="min-h-screen bg-gradient-to-br from-[oklch(0.145_0_0)] via-[oklch(0.165_0_0)] to-[oklch(0.125_0_0)]">
       {/* Navbar */}
       <div className="relative z-20 px-4 py-4">
-        <Navbar />
+        <Navbar hideNavigation={true} title="Shows" />
       </div>
 
       {/* Header */}
@@ -664,17 +664,16 @@ export default function ShowsPage() {
                       {/* Status Tag */}
                       {show.status && (
                         <div
-                          className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                            show.status === "live"
-                              ? "bg-red-500 text-white animate-pulse"
-                              : show.status === "viral"
+                          className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${show.status === "live"
+                            ? "bg-red-500 text-white animate-pulse"
+                            : show.status === "viral"
                               ? "bg-gradient-to-r from-pink-500 to-orange-500 text-white"
                               : show.status === "trending"
-                              ? "bg-gradient-to-r from-green-500 to-blue-500 text-white"
-                              : show.status === "upcoming"
-                              ? "bg-blue-500 text-white"
-                              : "bg-gray-500 text-white"
-                          }`}
+                                ? "bg-gradient-to-r from-green-500 to-blue-500 text-white"
+                                : show.status === "upcoming"
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-gray-500 text-white"
+                            }`}
                         >
                           {show.status === "live" && "🔴 "}
                           {show.status}
@@ -726,9 +725,9 @@ export default function ShowsPage() {
                                       typeof profile === "string"
                                         ? profile
                                         : profile.avatarUrl ||
-                                          profile.avatar ||
-                                          profile.userId ||
-                                          "";
+                                        profile.avatar ||
+                                        profile.userId ||
+                                        "";
                                     return (
                                       <img
                                         key={index}
