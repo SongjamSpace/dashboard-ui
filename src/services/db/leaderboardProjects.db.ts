@@ -15,7 +15,7 @@ export const getLbProjectByTwitterUsername = async (
 ) => {
   const q = query(
     collection(db, LEADERBOARD_PROJECTS_COLLECTION),
-    where("twitterUsername", "==", twitterUsername)
+    where("twitterUsername", "==", twitterUsername.toLowerCase())
   );
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map((doc) => doc.data() as LeaderboardProject);
