@@ -46,14 +46,12 @@ function ChartToggle({ label, config, onChange }: ChartToggleProps) {
         <button
           disabled
           onClick={() => onChange({ ...config, enabled: !config.enabled })}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            config.enabled ? "bg-blue-600" : "bg-gray-600"
-          }`}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.enabled ? "bg-blue-600" : "bg-gray-600"
+            }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-              config.enabled ? "translate-x-6" : "translate-x-1"
-            }`}
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${config.enabled ? "translate-x-6" : "translate-x-1"
+              }`}
           />
         </button>
       </div>
@@ -111,7 +109,7 @@ export function ProjectCard({ project, onProjectUpdate }: ProjectCardProps) {
       transition={{ duration: 0.5 }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">

@@ -22,7 +22,7 @@ export default function EpisodeThreeUnlock() {
   // Unlock targets
   const targets = [
     {
-      label: "Total Songjammers",
+      label: "Total Singers",
       value: "2.5K",
       current: totalUsersCount, // This should be dynamic from your backend
       target: 2500,
@@ -87,13 +87,12 @@ export default function EpisodeThreeUnlock() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
               viewport={{ once: true }}
-              className={`relative overflow-hidden backdrop-blur-sm rounded-xl p-4 text-center transition-all duration-300 ${
-                item.unlocked
+              className={`relative overflow-hidden backdrop-blur-sm rounded-xl p-4 text-center transition-all duration-300 ${item.unlocked
                   ? "bg-gradient-to-br from-green-500/20 to-green-600/10 border-2 border-green-500/60 shadow-lg shadow-green-500/20"
                   : item.mystery
-                  ? "bg-gradient-to-br from-purple-500/10 to-pink-500/5 border-2 border-purple-400/40 hover:border-purple-400/60 hover:shadow-lg hover:shadow-purple-500/10"
-                  : "bg-white/10 border-2 border-white/30 hover:bg-white/15 hover:border-white/40"
-              }`}
+                    ? "bg-gradient-to-br from-purple-500/10 to-pink-500/5 border-2 border-purple-400/40 hover:border-purple-400/60 hover:shadow-lg hover:shadow-purple-500/10"
+                    : "bg-white/10 border-2 border-white/30 hover:bg-white/15 hover:border-white/40"
+                }`}
             >
               {/* Glow effect for mystery items */}
               {item.mystery && !item.unlocked && (
@@ -132,9 +131,8 @@ export default function EpisodeThreeUnlock() {
                   </div>
                 ) : (
                   <div
-                    className={`text-3xl md:text-4xl font-black ${
-                      item.unlocked ? "text-green-400" : "text-white"
-                    }`}
+                    className={`text-3xl md:text-4xl font-black ${item.unlocked ? "text-green-400" : "text-white"
+                      }`}
                     style={{ fontFamily: "Orbitron, sans-serif" }}
                   >
                     {item.value}
@@ -144,9 +142,8 @@ export default function EpisodeThreeUnlock() {
 
               {/* Label area */}
               <div
-                className={`text-xs uppercase tracking-wider relative z-10 ${
-                  item.mystery ? "text-purple-300/90" : "text-white/80"
-                }`}
+                className={`text-xs uppercase tracking-wider relative z-10 ${item.mystery ? "text-purple-300/90" : "text-white/80"
+                  }`}
                 style={{ fontFamily: "Inter, sans-serif" }}
               >
                 {item.label}

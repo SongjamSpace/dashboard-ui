@@ -24,9 +24,10 @@ interface SnapshotChartData {
 
 interface UsersGrowthProps {
   projectId: string;
+  startDateInSeconds?: number;
 }
 
-export function UsersGrowthChart({ projectId }: UsersGrowthProps) {
+export function UsersGrowthChart({ projectId, startDateInSeconds }: UsersGrowthProps) {
   const {
     data: snapshotData,
     isLoading: snapshotLoading,
@@ -168,14 +169,15 @@ export function UsersGrowthChart({ projectId }: UsersGrowthProps) {
               {showRefreshing
                 ? "Refreshing snapshots..."
                 : snapshotsCount
-                ? `Tracking ${Math.min(
+                  ? `Tracking ${Math.min(
                     snapshotsCount,
                     50
                   )} most recent snapshots`
-                : isSnapshotLoading
-                ? "Loading snapshots..."
-                : "No snapshots available yet"}
+                  : isSnapshotLoading
+                    ? "Loading snapshots..."
+                    : "No snapshots available yet"}
             </p>
+
             {showRefreshing && (
               <div
                 className="flex items-center gap-2 text-xs text-emerald-300"
@@ -183,6 +185,22 @@ export function UsersGrowthChart({ projectId }: UsersGrowthProps) {
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
                 Live update
+              </div>
+            )}
+            {startDateInSeconds && (
+              <div
+                className="text-xs text-white/50 mt-1"
+                style={{ fontFamily: "Inter, sans-serif" }}
+              >
+                Campaign from{" "}
+                {new Date(startDateInSeconds * 1000).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "numeric",
+                  timeZoneName: "short",
+                })}
               </div>
             )}
           </div>
@@ -211,9 +229,8 @@ export function UsersGrowthChart({ projectId }: UsersGrowthProps) {
             </div>
             {usersDelta !== null && (
               <div
-                className={`text-sm font-medium ${
-                  usersDelta >= 0 ? "text-emerald-300" : "text-red-300"
-                }`}
+                className={`text-sm font-medium ${usersDelta >= 0 ? "text-emerald-300" : "text-red-300"
+                  }`}
                 style={{ fontFamily: "Inter, sans-serif" }}
               >
                 {usersDelta >= 0 ? "+" : ""}

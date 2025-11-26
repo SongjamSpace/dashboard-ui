@@ -5,11 +5,11 @@ import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import {
-  Eye,
+  BarChart,
   Heart,
   MessageCircle,
   Quote,
-  RotateCcw,
+  Repeat2,
   Bookmark,
 } from "lucide-react";
 import { useAuth } from "@/components/providers";
@@ -54,21 +54,21 @@ export default function Dashboard() {
   const router = useRouter();
   // Fetch project data from Firebase
   const {
-    data: projectData,
+    data: project,
     isLoading: projectLoading,
     error: projectError,
-  } = useQuery<LeaderboardProject[], Error>({
+  } = useQuery<LeaderboardProject | undefined, Error>({
     queryKey: ["project", twitterObj?.username || ""],
-    queryFn: async (): Promise<LeaderboardProject[]> => {
-      return await getLbProjectByTwitterUsername(twitterObj?.username || "");
+    queryFn: async (): Promise<LeaderboardProject | undefined> => {
+      if (!twitterObj?.username) {
+        return undefined;
+      }
+      return await getLbProjectByTwitterUsername(twitterObj?.username);
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     enabled: authenticated, // Only fetch when user is authenticated
   });
-
-  // Get the first project (assuming one project per Twitter username)
-  const project = projectData?.[0];
 
   const baseServerUrl = process.env.NEXT_PUBLIC_SONGJAM_SERVER;
 
@@ -204,20 +204,6 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            ) : projectError ? (
-              <div className="bg-red-500/10 backdrop-blur-sm rounded-xl border border-red-500/20 p-6">
-                <div className="text-red-400 text-center">
-                  <p style={{ fontFamily: "Inter, sans-serif" }}>
-                    Failed to load project data
-                  </p>
-                  <p
-                    className="text-sm text-red-400/70 mt-2"
-                    style={{ fontFamily: "Inter, sans-serif" }}
-                  >
-                    {projectError.message}
-                  </p>
-                </div>
-              </div>
             ) : project ? (
               <ProjectCard
                 project={project}
@@ -272,7 +258,7 @@ export default function Dashboard() {
                   {
                     key: "totalViews" as const,
                     label: "Views",
-                    icon: Eye,
+                    icon: BarChart,
                     fallback: 0,
                   },
                   {
@@ -296,7 +282,7 @@ export default function Dashboard() {
                   {
                     key: "totalRetweets" as const,
                     label: "Retweets",
-                    icon: RotateCcw,
+                    icon: Repeat2,
                     fallback: 0,
                   },
                   {
@@ -338,7 +324,10 @@ export default function Dashboard() {
             </div>
 
             {project?.projectId && (
-              <UsersGrowthChart projectId={project.projectId} />
+              <UsersGrowthChart
+                projectId={project.projectId}
+                startDateInSeconds={project.startDateInSeconds}
+              />
             )}
           </div>
 
@@ -364,22 +353,22 @@ export default function Dashboard() {
                     className="text-lg font-semibold text-white"
                     style={{ fontFamily: "Orbitron, sans-serif" }}
                   >
-                    All Yappers
+                    All Singers
                   </h3>
                   <div className="flex items-center space-x-2">
                     {/* <div className="text-2xl">👥</div> */}
                     <div
-                      className="text-xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+                      className="text-xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mr-4"
                       style={{ fontFamily: "Orbitron, sans-serif" }}
                     >
                       {leaderboardData?.length || 0}
                     </div>
-                    <div
+                    {/* <div
                       className="text-xs text-white/60 font-medium"
                       style={{ fontFamily: "Inter, sans-serif" }}
                     >
-                      songjammers
-                    </div>
+                      singers
+                    </div> */}
                   </div>
                 </div>
                 <div className="overflow-x-auto max-h-[40rem] overflow-y-auto">
@@ -401,9 +390,8 @@ export default function Dashboard() {
                       {leaderboardData?.map((u, idx) => (
                         <tr
                           key={u.userId}
-                          className={`${
-                            idx % 2 === 0 ? "bg-white/0" : "bg-white/[0.03]"
-                          } border-t border-white/10`}
+                          className={`${idx % 2 === 0 ? "bg-white/0" : "bg-white/[0.03]"
+                            } border-t border-white/10`}
                         >
                           <td className="px-6 py-3 align-middle">
                             <span
@@ -431,11 +419,10 @@ export default function Dashboard() {
                           </td>
                           <td className="px-6 py-3 text-center align-middle">
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${
-                                u.stakingMultiplier && u.stakingMultiplier > 1
-                                  ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white"
-                                  : "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border border-gray-500/30 text-white/70"
-                              }`}
+                              className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${u.stakingMultiplier && u.stakingMultiplier > 1
+                                ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white"
+                                : "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border border-gray-500/30 text-white/70"
+                                }`}
                               style={{ fontFamily: "Inter, sans-serif" }}
                             >
                               {u.stakingMultiplier

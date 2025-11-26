@@ -18,7 +18,7 @@ export const getLbProjectByTwitterUsername = async (
     where("twitterUsername", "==", twitterUsername.toLowerCase())
   );
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => doc.data() as LeaderboardProject);
+  return querySnapshot.docs.map((doc) => doc.data() as LeaderboardProject)[0];
 };
 
 export interface ChartConfig {
