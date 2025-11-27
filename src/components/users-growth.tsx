@@ -202,7 +202,7 @@ export function UsersGrowthChart({
                 Live update
               </div>
             )}
-            {startDateInSeconds && (
+            {!!startDateInSeconds && (
               <div
                 className="text-xs text-white/50 mt-1"
                 style={{ fontFamily: "Inter, sans-serif" }}
