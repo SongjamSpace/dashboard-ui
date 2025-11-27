@@ -10,6 +10,9 @@ import {
     Users,
     Shield,
     LucideIcon,
+    Headphones,
+    Crown,
+    UserPlus,
 } from "lucide-react";
 import { LeaderboardProject } from "@/services/db/leaderboardProjects.db";
 
@@ -34,7 +37,9 @@ interface AnalyticsResponse {
 interface AudioFiAnalytics {
     totalSpaces: number;
     totalSpeakers: number;
-    totalAdmins: number;
+    totalListeners: number;
+    totalHosts: number;
+    totalCoHosts: number;
 }
 
 interface AudioFiResponse {
@@ -180,10 +185,10 @@ export const useDashboardMetrics = (
             ]
             : [
                 {
-                    key: "totalSpaces",
-                    label: "Spaces",
-                    value: audioFiData?.totalSpaces ?? 0,
-                    icon: Mic,
+                    key: "totalListeners",
+                    label: "Listeners",
+                    value: audioFiData?.totalListeners ?? 0,
+                    icon: Headphones,
                 },
                 {
                     key: "totalSpeakers",
@@ -192,11 +197,29 @@ export const useDashboardMetrics = (
                     icon: Users,
                 },
                 {
-                    key: "totalAdmins",
-                    label: "Admins",
-                    value: audioFiData?.totalAdmins ?? 0,
-                    icon: Shield,
+                    key: "totalHosts",
+                    label: "Hosts",
+                    value: audioFiData?.totalHosts ?? 0,
+                    icon: Crown,
                 },
+                {
+                    key: "totalCoHosts",
+                    label: "Co-Hosts",
+                    value: audioFiData?.totalCoHosts ?? 0,
+                    icon: UserPlus,
+                },
+                {
+                    key: "totalSpaces",
+                    label: "Spaces",
+                    value: audioFiData?.totalSpaces ?? 0,
+                    icon: Mic,
+                },
+                // {
+                //     key: "totalDiscussions",
+                //     label: "Discussions",
+                //     value: audioFiData?.totalDiscussions ?? 0,
+                //     icon: Shield,
+                // },
             ];
 
     return {

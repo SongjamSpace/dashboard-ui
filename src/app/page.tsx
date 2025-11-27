@@ -11,6 +11,7 @@ import {
   Quote,
   Repeat2,
   Bookmark,
+  MessagesSquare,
 } from "lucide-react";
 import { useAuth } from "@/components/providers";
 import Navbar from "@/components/navbar";
@@ -44,6 +45,7 @@ export default function Dashboard() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("24H");
   const [growthView, setGrowthView] = useState<GrowthView>("Tweets");
   const router = useRouter();
+  const [totalDiscussions, setTotalDiscussions] = useState<number>(0);
   // Fetch project data from Firebase
   const {
     data: project,
@@ -215,7 +217,7 @@ export default function Dashboard() {
 
             {/* Analytics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-              {cards.map((metric) => {
+              {(growthView === "Spaces" ? [...cards, { key: "totalDiscussions", label: "Discussions", value: totalDiscussions, icon: MessagesSquare }] : cards).map((metric) => {
                 const IconComponent = metric.icon;
                 return (
                   <motion.div
@@ -252,6 +254,7 @@ export default function Dashboard() {
                 }
                 startDateInSeconds={project?.startDateInSeconds}
                 source={growthView === "Spaces" ? "audioFi" : "leaderboard"}
+                setTotalDiscussions={setTotalDiscussions}
               />
             )}
           </div>

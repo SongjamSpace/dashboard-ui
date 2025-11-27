@@ -27,12 +27,14 @@ interface UsersGrowthProps {
   projectId: string;
   startDateInSeconds?: number;
   source?: "leaderboard" | "audioFi";
+  setTotalDiscussions?: (discussions: number) => void;
 }
 
 export function UsersGrowthChart({
   projectId,
   startDateInSeconds,
   source = "leaderboard",
+  setTotalDiscussions,
 }: UsersGrowthProps) {
   const {
     data: snapshotData,
@@ -43,6 +45,7 @@ export function UsersGrowthChart({
     queryFn: async (): Promise<LeaderboardProjectSnapshot[]> => {
       if (source === "audioFi") {
         const snaps = await getAudioFiProjectSnapshots(projectId, 50);
+        setTotalDiscussions?.(snaps[0].count);
         return snaps.map((s) => ({
           createdAt: s.createdAt,
           usersCount: s.count,
@@ -175,7 +178,7 @@ export function UsersGrowthChart({
               className="text-lg font-semibold text-white"
               style={{ fontFamily: "Orbitron, sans-serif" }}
             >
-              Users Growth
+              {source === 'audioFi' ? `Discussions Growth` : `Users Growth`}
             </h3>
             <p
               className="text-white/70 text-sm"
@@ -224,7 +227,7 @@ export function UsersGrowthChart({
               className="text-xs uppercase tracking-wide text-white/60"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
-              Current users
+              {source === 'audioFi' ? `Total Discussions` : `Current users`}
             </div>
             <div
               className="text-3xl font-bold text-white"
