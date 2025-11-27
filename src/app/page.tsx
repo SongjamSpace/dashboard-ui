@@ -379,7 +379,7 @@ export default function Dashboard() {
                         style={{ fontFamily: "Inter, sans-serif" }}
                       >
                         <th className="px-6 py-3">Rank</th>
-                        <th className="px-6 py-3">Yapper</th>
+                        <th className="px-6 py-3">Singer</th>
                         <th className="px-6 py-3 text-center">
                           Staking Multiplier
                         </th>
@@ -390,8 +390,9 @@ export default function Dashboard() {
                       {leaderboardData?.map((u, idx) => (
                         <tr
                           key={u.userId}
-                          className={`${idx % 2 === 0 ? "bg-white/0" : "bg-white/[0.03]"
-                            } border-t border-white/10`}
+                          className={`${
+                            idx % 2 === 0 ? "bg-white/0" : "bg-white/[0.03]"
+                          } border-t border-white/10`}
                         >
                           <td className="px-6 py-3 align-middle">
                             <span
@@ -419,10 +420,11 @@ export default function Dashboard() {
                           </td>
                           <td className="px-6 py-3 text-center align-middle">
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${u.stakingMultiplier && u.stakingMultiplier > 1
-                                ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white"
-                                : "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border border-gray-500/30 text-white/70"
-                                }`}
+                              className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${
+                                u.stakingMultiplier && u.stakingMultiplier > 1
+                                  ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white"
+                                  : "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border border-gray-500/30 text-white/70"
+                              }`}
                               style={{ fontFamily: "Inter, sans-serif" }}
                             >
                               {u.stakingMultiplier

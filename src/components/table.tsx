@@ -44,7 +44,7 @@ export default function TableDemo() {
           <TableHeader>
             <TableRow className="text-[#48333D] font-bold">
               <TableHead className="w-[100px] text-[#48333D]">Rank</TableHead>
-              <TableHead className="text-[#48333D]">Yapper</TableHead>
+              <TableHead className="text-[#48333D]">Singer</TableHead>
               <TableHead className="w-40" />
               <TableHead className="text-[#48333D]">Total Points</TableHead>
             </TableRow>
@@ -121,7 +121,7 @@ export default function TableDemo() {
         <TableHeader>
           <TableRow className="text-[#48333D] font-bold">
             <TableHead className="w-[100px] text-[#48333D]">Rank</TableHead>
-            <TableHead className="text-[#48333D]">Yapper</TableHead>
+            <TableHead className="text-[#48333D]">Singer</TableHead>
             <TableHead className="w-20 text-[#48333D]">
               <div className="flex items-center justify-center relative">
                 <div className="relative group cursor-pointer">
