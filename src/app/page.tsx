@@ -23,20 +23,11 @@ import {
 import { UsersGrowthChart } from "@/components/users-growth";
 import { useRouter } from "next/navigation";
 
-interface AnalyticsMetrics {
-  projectId: string;
-  totalLikes: number;
-  totalReplies: number;
-  totalRetweets: number;
-  totalQuotes: number;
-  totalBookmarks: number;
-  totalViews?: number;
-}
-
-interface AnalyticsResponse {
-  success: boolean;
-  metrics: AnalyticsMetrics;
-}
+import {
+  useDashboardMetrics,
+  GrowthView,
+  Timeframe,
+} from "@/hooks/use-dashboard-metrics";
 
 interface LeaderboardRow {
   username: string;
@@ -46,11 +37,12 @@ interface LeaderboardRow {
   stakingMultiplier?: number;
 }
 
-type Timeframe = "24H" | "ALL";
+
 
 export default function Dashboard() {
   const { ready, authenticated, login, twitterObj } = useAuth();
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("24H");
+  const [growthView, setGrowthView] = useState<GrowthView>("Tweets");
   const router = useRouter();
   // Fetch project data from Firebase
   const {
@@ -63,7 +55,7 @@ export default function Dashboard() {
       if (!twitterObj?.username) {
         return undefined;
       }
-      return await getLbProjectByTwitterUsername(twitterObj?.username);
+      return await getLbProjectByTwitterUsername(twitterObj.username);
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -72,44 +64,13 @@ export default function Dashboard() {
 
   const baseServerUrl = process.env.NEXT_PUBLIC_SONGJAM_SERVER;
 
-  // Analytics data fetch
-  const { data: analyticsData, isLoading: analyticsLoading } =
-    useQuery<AnalyticsMetrics>({
-      queryKey: ["analytics", project?.projectId, selectedTimeframe],
-      queryFn: async (): Promise<AnalyticsMetrics> => {
-        if (!project?.projectId) {
-          throw new Error("Missing projectId for analytics data request");
-        }
-
-        if (!baseServerUrl) {
-          throw new Error(
-            "NEXT_PUBLIC_SONGJAM_SERVER environment variable is not configured"
-          );
-        }
-
-        const analyticsUrl = new URL("/leaderboard/metrics", baseServerUrl);
-        analyticsUrl.searchParams.set("projectId", project.projectId);
-        analyticsUrl.searchParams.set("timeframe", selectedTimeframe);
-
-        const response = await fetch(analyticsUrl.toString());
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = (await response.json()) as AnalyticsResponse;
-
-        if (!result.success) {
-          throw new Error("Analytics request did not succeed");
-        }
-
-        return result.metrics;
-      },
-      staleTime: 60 * 1000,
-      placeholderData: keepPreviousData,
-      refetchOnWindowFocus: false,
-      enabled: Boolean(project?.projectId),
-    });
+  // Analytics data fetch using custom hook
+  const { cards, isLoading: analyticsLoading } = useDashboardMetrics(
+    growthView,
+    project,
+    twitterObj?.username,
+    selectedTimeframe
+  );
 
   // Fetch leaderboard data (using existing endpoint)
   const {
@@ -233,100 +194,64 @@ export default function Dashboard() {
           <div className="mb-8">
             {/* Timeframe Selector - Aligned to the right */}
             <div className="flex justify-end mb-6">
-              {/* <div className="flex rounded-lg p-1 border bg-white/10 border-white/20">
-                {(["24H", "ALL"] as Timeframe[]).map((timeframe) => (
-                  <button
-                    key={timeframe}
-                    onClick={() => handleTimeframeChange(timeframe)}
-                    className={`px-6 py-3 rounded-md font-medium transition-all duration-200 ${
-                      selectedTimeframe === timeframe
+              {project?.enableLurkySpacePoints && (
+                <div className="flex rounded-lg p-1 border bg-white/10 border-white/20">
+                  {(["Tweets", "Spaces"] as GrowthView[]).map((view) => (
+                    <button
+                      key={view}
+                      onClick={() => setGrowthView(view)}
+                      className={`px-6 py-3 rounded-md font-medium transition-all duration-200 ${growthView === view
                         ? "bg-white/20 text-white shadow-sm"
                         : "text-white/70 hover:text-white/90"
-                    }`}
-                    style={{ fontFamily: "Inter, sans-serif" }}
-                  >
-                    {timeframe}
-                  </button>
-                ))}
-              </div> */}
+                        }`}
+                      style={{ fontFamily: "Inter, sans-serif" }}
+                    >
+                      {view}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Analytics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-              {analyticsData &&
-                [
-                  {
-                    key: "totalViews" as const,
-                    label: "Views",
-                    icon: BarChart,
-                    fallback: 0,
-                  },
-                  {
-                    key: "totalLikes" as const,
-                    label: "Likes",
-                    icon: Heart,
-                    fallback: 0,
-                  },
-                  {
-                    key: "totalReplies" as const,
-                    label: "Replies",
-                    icon: MessageCircle,
-                    fallback: 0,
-                  },
-                  {
-                    key: "totalQuotes" as const,
-                    label: "Quotes",
-                    icon: Quote,
-                    fallback: 0,
-                  },
-                  {
-                    key: "totalRetweets" as const,
-                    label: "Retweets",
-                    icon: Repeat2,
-                    fallback: 0,
-                  },
-                  {
-                    key: "totalBookmarks" as const,
-                    label: "Bookmarks",
-                    icon: Bookmark,
-                    fallback: 0,
-                  },
-                ].map((metric) => {
-                  const IconComponent = metric.icon;
-                  const value =
-                    analyticsData[metric.key] ?? metric.fallback ?? 0;
-                  return (
-                    <motion.div
-                      key={metric.key}
-                      className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-6 text-center"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 0.1 }}
+              {cards.map((metric) => {
+                const IconComponent = metric.icon;
+                return (
+                  <motion.div
+                    key={metric.key}
+                    className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-6 text-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                  >
+                    <div className="flex justify-center mb-2">
+                      <IconComponent className="w-8 h-8 text-white" />
+                    </div>
+                    <div
+                      className="text-3xl font-bold text-white mb-1"
+                      style={{ fontFamily: "Orbitron, sans-serif" }}
                     >
-                      <div className="flex justify-center mb-2">
-                        <IconComponent className="w-8 h-8 text-white" />
-                      </div>
-                      <div
-                        className="text-3xl font-bold text-white mb-1"
-                        style={{ fontFamily: "Orbitron, sans-serif" }}
-                      >
-                        {value.toLocaleString()}
-                      </div>
-                      <div
-                        className="text-white/70 text-sm"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        {metric.label}
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                      {metric.value.toLocaleString()}
+                    </div>
+                    <div
+                      className="text-white/70 text-sm"
+                      style={{ fontFamily: "Inter, sans-serif" }}
+                    >
+                      {metric.label}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
 
             {project?.projectId && (
               <UsersGrowthChart
-                projectId={project.projectId}
-                startDateInSeconds={project.startDateInSeconds}
+                projectId={
+                  project?.projectId
+                }
+                startDateInSeconds={project?.startDateInSeconds}
+                source={growthView === "Spaces" ? "audioFi" : "leaderboard"}
               />
             )}
           </div>
@@ -390,9 +315,8 @@ export default function Dashboard() {
                       {leaderboardData?.map((u, idx) => (
                         <tr
                           key={u.userId}
-                          className={`${
-                            idx % 2 === 0 ? "bg-white/0" : "bg-white/[0.03]"
-                          } border-t border-white/10`}
+                          className={`${idx % 2 === 0 ? "bg-white/0" : "bg-white/[0.03]"
+                            } border-t border-white/10`}
                         >
                           <td className="px-6 py-3 align-middle">
                             <span
@@ -420,11 +344,10 @@ export default function Dashboard() {
                           </td>
                           <td className="px-6 py-3 text-center align-middle">
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${
-                                u.stakingMultiplier && u.stakingMultiplier > 1
-                                  ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white"
-                                  : "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border border-gray-500/30 text-white/70"
-                              }`}
+                              className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${u.stakingMultiplier && u.stakingMultiplier > 1
+                                ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white"
+                                : "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border border-gray-500/30 text-white/70"
+                                }`}
                               style={{ fontFamily: "Inter, sans-serif" }}
                             >
                               {u.stakingMultiplier

@@ -7,6 +7,7 @@ import {
   LeaderboardProjectSnapshot,
   getLbProjectSnapshots,
 } from "@/services/db/leaderboardProjects.db";
+import { getAudioFiProjectSnapshots } from "@/services/db/audioFi.db";
 
 interface SnapshotChartPoint {
   x: number;
@@ -25,16 +26,30 @@ interface SnapshotChartData {
 interface UsersGrowthProps {
   projectId: string;
   startDateInSeconds?: number;
+  source?: "leaderboard" | "audioFi";
 }
 
-export function UsersGrowthChart({ projectId, startDateInSeconds }: UsersGrowthProps) {
+export function UsersGrowthChart({
+  projectId,
+  startDateInSeconds,
+  source = "leaderboard",
+}: UsersGrowthProps) {
   const {
     data: snapshotData,
     isLoading: snapshotLoading,
     isFetching: snapshotFetching,
   } = useQuery<LeaderboardProjectSnapshot[]>({
-    queryKey: ["projectSnapshots", projectId],
+    queryKey: ["projectSnapshots", projectId, source],
     queryFn: async (): Promise<LeaderboardProjectSnapshot[]> => {
+      if (source === "audioFi") {
+        const snaps = await getAudioFiProjectSnapshots(projectId, 50);
+        return snaps.map((s) => ({
+          createdAt: s.createdAt,
+          usersCount: s.count,
+          createdDateTime: new Date(s.createdAt),
+          id: `${s.createdAt}`,
+        })) as LeaderboardProjectSnapshot[];
+      }
       return await getLbProjectSnapshots(projectId, 50);
     },
     staleTime: 5 * 60 * 1000,

@@ -49,6 +49,7 @@ export interface LeaderboardProject {
   twitterUsername: string;
   userIdsForUpdate: string[];
   weeklyChart: ChartConfig;
+  enableLurkySpacePoints?: boolean;
 }
 
 export interface LeaderboardProjectSnapshot {
