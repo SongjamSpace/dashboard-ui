@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Settings, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,9 @@ import {
 
 interface ProjectCardProps {
   project: LeaderboardProject;
+  projects?: LeaderboardProject[];
   onProjectUpdate?: (project: LeaderboardProject) => void;
+  onProjectSelect?: (project: LeaderboardProject) => void;
 }
 
 interface ChartToggleProps {
@@ -59,12 +61,17 @@ function ChartToggle({ label, config, onChange }: ChartToggleProps) {
   );
 }
 
-export function ProjectCard({ project, onProjectUpdate }: ProjectCardProps) {
+export function ProjectCard({ project, projects, onProjectUpdate, onProjectSelect }: ProjectCardProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [copiedApiKey, setCopiedApiKey] = useState(false);
   const [copiedEndpoint, setCopiedEndpoint] = useState(false);
   const [localProject, setLocalProject] = useState<LeaderboardProject>(project);
+
+  // Sync localProject when the incoming project prop changes
+  useEffect(() => {
+    setLocalProject(project);
+  }, [project]);
 
   const handleChartConfigChange = (
     chartType: keyof LeaderboardProject,
@@ -134,158 +141,184 @@ export function ProjectCard({ project, onProjectUpdate }: ProjectCardProps) {
           </div>
         </div>
 
-        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white/70 hover:text-white hover:bg-white/10"
+        <div className="flex items-center space-x-3">
+          {/* Project Selector Dropdown */}
+          {projects && projects.length > 1 && (
+            <select
+              value={project.projectId}
+              onChange={(e) => {
+                const selectedProject = projects.find(p => p.projectId === e.target.value);
+                if (selectedProject && onProjectSelect) {
+                  onProjectSelect(selectedProject);
+                }
+              }}
+              className="bg-white/5 text-white text-sm border border-white/20 rounded-lg px-3 py-1.5 font-medium focus:outline-none focus:ring-2 focus:ring-purple-400/50 transition-all duration-200 cursor-pointer hover:bg-white/10"
+              style={{ fontFamily: "Inter, sans-serif" }}
             >
-              <Settings className="w-5 h-5" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl bg-gray-900/95 backdrop-blur-sm border-white/20">
-            <DialogHeader>
-              <DialogTitle
-                className="text-white"
-                style={{ fontFamily: "Orbitron, sans-serif" }}
+              {projects.map((proj) => (
+                <option
+                  key={proj.projectId}
+                  value={proj.projectId}
+                  className="bg-[oklch(0.145_0_0)] text-white"
+                >
+                  {proj.projectId}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white/70 hover:text-white hover:bg-white/10"
               >
-                Project Settings
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-6">
-              {/* Chart Toggles */}
-              <div>
-                <h4
-                  className="text-white font-semibold mb-4"
-                  style={{ fontFamily: "Inter, sans-serif" }}
+                <Settings className="w-5 h-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl bg-gray-900/95 backdrop-blur-sm border-white/20">
+              <DialogHeader>
+                <DialogTitle
+                  className="text-white"
+                  style={{ fontFamily: "Orbitron, sans-serif" }}
                 >
-                  Chart Types
-                </h4>
-                <div className="space-y-3">
-                  <ChartToggle
-                    label="Hourly Chart"
-                    config={localProject.hourlyChart}
-                    onChange={(config) =>
-                      handleChartConfigChange("hourlyChart", config)
-                    }
-                  />
-                  <ChartToggle
-                    label="Daily Chart"
-                    config={localProject.dailyChart}
-                    onChange={(config) =>
-                      handleChartConfigChange("dailyChart", config)
-                    }
-                  />
-                  <ChartToggle
-                    label="Weekly Chart"
-                    config={localProject.weeklyChart}
-                    onChange={(config) =>
-                      handleChartConfigChange("weeklyChart", config)
-                    }
-                  />
-                  <ChartToggle
-                    label="Monthly Chart"
-                    config={localProject.monthlyChart}
-                    onChange={(config) =>
-                      handleChartConfigChange("monthlyChart", config)
-                    }
-                  />
-                </div>
-              </div>
+                  Project Settings
+                </DialogTitle>
+              </DialogHeader>
 
-              {/* API Key Section */}
-              <div>
-                <h4
-                  className="text-white font-semibold mb-4"
-                  style={{ fontFamily: "Inter, sans-serif" }}
-                >
-                  API Key
-                </h4>
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3">
-                    <code className="text-white font-mono text-sm">
-                      {showApiKey ? localProject.apiKey : maskedApiKey}
-                    </code>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="text-white/70 hover:text-white hover:bg-white/10"
+              <div className="space-y-6">
+                {/* Chart Toggles */}
+                <div>
+                  <h4
+                    className="text-white font-semibold mb-4"
+                    style={{ fontFamily: "Inter, sans-serif" }}
                   >
-                    {showApiKey ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={copyApiKey}
-                    className="text-white/70 hover:text-white hover:bg-white/10"
-                  >
-                    {copiedApiKey ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* API Endpoints Documentation */}
-              <div>
-                <h4
-                  className="text-white font-semibold mb-4"
-                  style={{ fontFamily: "Inter, sans-serif" }}
-                >
-                  API Endpoints
-                </h4>
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                    Chart Types
+                  </h4>
                   <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded text-xs font-mono">
-                          GET
-                        </span>
-                        <div className="flex-1">
-                          <code className="text-blue-400 font-mono text-sm break-all">
-                            https://songjamspace-leaderboard.logesh-063.workers.dev/
-                            {localProject.projectId}
-                          </code>
-                        </div>
-                        <button
-                          onClick={copyEndpoint}
-                          className="text-white/70 hover:text-white hover:bg-white/10 p-1 rounded"
-                        >
-                          {copiedEndpoint ? (
-                            <Check className="w-3 h-3 text-green-500" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                      </div>
-                      <p
-                        className="text-white/60 text-sm"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        Fetch leaderboard data for this project
-                      </p>
-                    </div>
+                    <ChartToggle
+                      label="Hourly Chart"
+                      config={localProject.hourlyChart}
+                      onChange={(config) =>
+                        handleChartConfigChange("hourlyChart", config)
+                      }
+                    />
+                    <ChartToggle
+                      label="Daily Chart"
+                      config={localProject.dailyChart}
+                      onChange={(config) =>
+                        handleChartConfigChange("dailyChart", config)
+                      }
+                    />
+                    <ChartToggle
+                      label="Weekly Chart"
+                      config={localProject.weeklyChart}
+                      onChange={(config) =>
+                        handleChartConfigChange("weeklyChart", config)
+                      }
+                    />
+                    <ChartToggle
+                      label="Monthly Chart"
+                      config={localProject.monthlyChart}
+                      onChange={(config) =>
+                        handleChartConfigChange("monthlyChart", config)
+                      }
+                    />
+                  </div>
+                </div>
 
-                    <div className="border-t border-white/10 pt-3">
-                      <h5
-                        className="text-white/80 text-sm font-medium mb-2"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        Response Format:
-                      </h5>
-                      <div className="bg-black/30 rounded p-3">
-                        <code className="text-gray-300 font-mono text-xs">
-                          {`[
+                {/* API Key Section */}
+                <div>
+                  <h4
+                    className="text-white font-semibold mb-4"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    API Key
+                  </h4>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3">
+                      <code className="text-white font-mono text-sm">
+                        {showApiKey ? localProject.apiKey : maskedApiKey}
+                      </code>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="text-white/70 hover:text-white hover:bg-white/10"
+                    >
+                      {showApiKey ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={copyApiKey}
+                      className="text-white/70 hover:text-white hover:bg-white/10"
+                    >
+                      {copiedApiKey ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* API Endpoints Documentation */}
+                <div>
+                  <h4
+                    className="text-white font-semibold mb-4"
+                    style={{ fontFamily: "Inter, sans-serif" }}
+                  >
+                    API Endpoints
+                  </h4>
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="bg-green-600/20 text-green-400 px-2 py-1 rounded text-xs font-mono">
+                            GET
+                          </span>
+                          <div className="flex-1">
+                            <code className="text-blue-400 font-mono text-sm break-all">
+                              https://songjamspace-leaderboard.logesh-063.workers.dev/
+                              {localProject.projectId}
+                            </code>
+                          </div>
+                          <button
+                            onClick={copyEndpoint}
+                            className="text-white/70 hover:text-white hover:bg-white/10 p-1 rounded"
+                          >
+                            {copiedEndpoint ? (
+                              <Check className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+                        <p
+                          className="text-white/60 text-sm"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Fetch leaderboard data for this project
+                        </p>
+                      </div>
+
+                      <div className="border-t border-white/10 pt-3">
+                        <h5
+                          className="text-white/80 text-sm font-medium mb-2"
+                          style={{ fontFamily: "Inter, sans-serif" }}
+                        >
+                          Response Format:
+                        </h5>
+                        <div className="bg-black/30 rounded p-3">
+                          <code className="text-gray-300 font-mono text-xs">
+                            {`[
   {
     "username": "string",
     "name": "string", 
@@ -294,15 +327,16 @@ export function ProjectCard({ project, onProjectUpdate }: ProjectCardProps) {
     "stakingMultiplier": number
   }
 ]`}
-                        </code>
+                          </code>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </motion.div>
   );

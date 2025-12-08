@@ -10,6 +10,18 @@ import {
 import { db } from "../firebase.service";
 
 const LEADERBOARD_PROJECTS_COLLECTION = "leaderboard_projects";
+
+export const getAllLbProjectsByTwitterUsername = async (
+  twitterUsername: string
+): Promise<LeaderboardProject[]> => {
+  const q = query(
+    collection(db, LEADERBOARD_PROJECTS_COLLECTION),
+    where("accessList", "array-contains", twitterUsername)
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map((doc) => doc.data() as LeaderboardProject);
+};
+
 export const getLbProjectByTwitterUsername = async (
   twitterUsername: string
 ) => {

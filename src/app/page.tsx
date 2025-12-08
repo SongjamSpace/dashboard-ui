@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import axios from "axios";
 import Link from "next/link";
 import {
   BarChart,
@@ -20,6 +21,7 @@ import LoginScreen from "@/components/login-screen";
 import {
   LeaderboardProject,
   getLbProjectByTwitterUsername,
+  getAllLbProjectsByTwitterUsername,
 } from "@/services/db/leaderboardProjects.db";
 import { UsersGrowthChart } from "@/components/users-growth";
 import { useRouter } from "next/navigation";
@@ -38,6 +40,26 @@ interface LeaderboardRow {
   stakingMultiplier?: number;
 }
 
+export interface UndoneData {
+  twitter_id: string;
+  activity: UndoneActivity;
+}
+
+export interface UndoneActivity {
+  stickers: {
+    count: number;
+    metadata: { stickers: { id: string; name: string; file_url: string }[] };
+  };
+  helmet_stickers: {
+    count: number;
+    metadata: { stickers: { id: string; name: string; file_url: string }[] };
+  };
+  tasks: { completed: number };
+  daily_spins: { count: number };
+  watch_orders: { count: number };
+  rounds: { completed: number };
+}
+
 
 
 export default function Dashboard() {
@@ -46,18 +68,25 @@ export default function Dashboard() {
   const [growthView, setGrowthView] = useState<GrowthView>("Tweets");
   const router = useRouter();
   const [totalDiscussions, setTotalDiscussions] = useState<number>(0);
-  // Fetch project data from Firebase
+  const [selectedProject, setSelectedProject] = useState<LeaderboardProject | undefined>(undefined);
+
+  // Fetch all projects data from Firebase
   const {
-    data: project,
+    data: projects,
     isLoading: projectLoading,
     error: projectError,
-  } = useQuery<LeaderboardProject | undefined, Error>({
-    queryKey: ["project", twitterObj?.username || ""],
-    queryFn: async (): Promise<LeaderboardProject | undefined> => {
+  } = useQuery<LeaderboardProject[], Error>({
+    queryKey: ["projects", twitterObj?.username || ""],
+    queryFn: async (): Promise<LeaderboardProject[]> => {
       if (!twitterObj?.username) {
-        return undefined;
+        return [];
       }
-      return await getLbProjectByTwitterUsername(twitterObj.username);
+      const allProjects = await getAllLbProjectsByTwitterUsername(twitterObj.username);
+      // Set first project as default
+      if (allProjects.length > 0 && !selectedProject) {
+        setSelectedProject(allProjects[0]);
+      }
+      return allProjects;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
@@ -69,7 +98,7 @@ export default function Dashboard() {
   // Analytics data fetch using custom hook
   const { cards, isLoading: analyticsLoading } = useDashboardMetrics(
     growthView,
-    project,
+    selectedProject,
     twitterObj?.username,
     selectedTimeframe
   );
@@ -81,10 +110,10 @@ export default function Dashboard() {
     isFetching: leaderboardFetching,
     error: leaderboardError,
   } = useQuery<LeaderboardRow[], Error>({
-    queryKey: ["leaderboard", project?.projectId || ""],
+    queryKey: ["leaderboard", selectedProject?.projectId || ""],
     queryFn: async (): Promise<LeaderboardRow[]> => {
       const response = await fetch(
-        `https://songjamspace-leaderboard.logesh-063.workers.dev/${project?.projectId}`
+        `https://songjamspace-leaderboard.logesh-063.workers.dev/${selectedProject?.projectId}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -95,7 +124,30 @@ export default function Dashboard() {
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
-    enabled: Boolean(project?.projectId),
+    enabled: Boolean(selectedProject?.projectId),
+  });
+
+  // Fetch Undone Watches data when projectId is "undonewatches"
+  const {
+    data: undoneData,
+    isLoading: undoneLoading,
+    error: undoneError,
+  } = useQuery<UndoneData[], Error>({
+    queryKey: ["undone", selectedProject?.projectId || ""],
+    queryFn: async (): Promise<UndoneData[]> => {
+      const response = await axios.get<UndoneData[]>(
+        "https://undone-wf1-1.dkloud.io/get_leaderboard",
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_UNDONE_API_KEY}`,
+          },
+        }
+      );
+      return response.data;
+    },
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(selectedProject?.projectId === "undonewatches"),
   });
 
   const handleTimeframeChange = (timeframe: Timeframe) => {
@@ -167,12 +219,16 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            ) : project ? (
+            ) : selectedProject ? (
               <ProjectCard
-                project={project}
+                project={selectedProject}
+                projects={projects}
                 onProjectUpdate={(updatedProject) => {
                   console.log("Project updated:", updatedProject);
                   // Here you would typically save the updated project to your backend
+                }}
+                onProjectSelect={(project) => {
+                  setSelectedProject(project);
                 }}
               />
             ) : (
@@ -196,7 +252,7 @@ export default function Dashboard() {
           <div className="mb-8">
             {/* Timeframe Selector - Aligned to the right */}
             <div className="flex justify-end mb-6">
-              {project?.enableLurkySpacePoints && (
+              {selectedProject?.enableLurkySpacePoints && (
                 <div className="flex rounded-lg p-1 border bg-white/10 border-white/20">
                   {(["Tweets", "Spaces"] as GrowthView[]).map((view) => (
                     <button
@@ -247,12 +303,12 @@ export default function Dashboard() {
               })}
             </div>
 
-            {project?.projectId && (
+            {selectedProject?.projectId && (
               <UsersGrowthChart
                 projectId={
-                  project?.projectId
+                  selectedProject?.projectId
                 }
-                startDateInSeconds={project?.startDateInSeconds}
+                startDateInSeconds={selectedProject?.startDateInSeconds}
                 source={growthView === "Spaces" ? "audioFi" : "leaderboard"}
                 setTotalDiscussions={setTotalDiscussions}
               />
