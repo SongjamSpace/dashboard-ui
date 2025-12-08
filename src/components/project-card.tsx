@@ -123,12 +123,14 @@ export function ProjectCard({ project, onProjectUpdate }: ProjectCardProps) {
             >
               @{localProject.twitterUsername}
             </h3>
-            <p
-              className="text-white/60 text-sm"
-              style={{ fontFamily: "Inter, sans-serif" }}
-            >
-              ${localProject.cashtag}
-            </p>
+            {localProject.cashtag && (
+              <p
+                className="text-white/60 text-sm"
+                style={{ fontFamily: "Inter, sans-serif" }}
+              >
+                ${localProject.cashtag}
+              </p>
+            )}
           </div>
         </div>
 
