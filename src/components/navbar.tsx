@@ -22,9 +22,8 @@ export default function Navbar({ inverse }: { inverse?: boolean }) {
           <div className="flex items-center space-x-2">
             <img src="/images/logo1.png" alt="Logo" className="h-8 w-8" />
             <span
-              className={`hidden md:block text-xl font-black ${
-                inverse ? "text-[#48333D]" : "text-white"
-              }`}
+              className={`hidden md:block text-xl font-black ${inverse ? "text-[#48333D]" : "text-white"
+                }`}
               style={{
                 fontFamily: "Audiowide, cursive",
                 textShadow: inverse
@@ -56,15 +55,22 @@ export default function Navbar({ inverse }: { inverse?: boolean }) {
             Hosts
           </Button>
         </Link>
+        <Link href="/mindshare-preview">
+          <Button
+            variant="ghost"
+            className={inverse ? "text-[#48333D] hover:text-[#48333D]/60" : ""}
+          >
+            Mindshare Preview
+          </Button>
+        </Link>
       </div>
       <div className="hidden md:block">
         {loading ? (
           <button
-            className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
-              inverse
+            className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 ${inverse
                 ? "bg-[#48333D]/50 text-white/50"
                 : "bg-black/50 text-white/50 border border-white/20"
-            }`}
+              }`}
             style={{ fontFamily: "Inter, sans-serif" }}
             disabled
           >
@@ -73,20 +79,18 @@ export default function Navbar({ inverse }: { inverse?: boolean }) {
         ) : authenticated && user ? (
           <div className="flex items-center gap-3">
             <span
-              className={`text-sm font-medium ${
-                inverse ? "text-[#48333D]" : "text-white"
-              }`}
+              className={`text-sm font-medium ${inverse ? "text-[#48333D]" : "text-white"
+                }`}
               style={{ fontFamily: "Inter, sans-serif" }}
             >
               {user.displayName || user.email || "User"}
             </span>
             <button
               onClick={logout}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
-                inverse
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 transform hover:scale-105 ${inverse
                   ? "bg-[#48333D] text-white hover:bg-[#48333D]/90 shadow-lg hover:shadow-xl"
                   : "bg-black text-white border border-white/30 hover:bg-black/90 shadow-lg hover:shadow-xl hover:border-white/50"
-              }`}
+                }`}
               style={{ fontFamily: "Inter, sans-serif" }}
             >
               Logout
@@ -95,11 +99,10 @@ export default function Navbar({ inverse }: { inverse?: boolean }) {
         ) : (
           <button
             onClick={login}
-            className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 ${
-              inverse
+            className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 ${inverse
                 ? "bg-[#48333D] text-white hover:bg-[#48333D]/90 shadow-lg hover:shadow-xl"
                 : "bg-black text-white border border-white/30 hover:bg-black/90 shadow-lg hover:shadow-xl hover:border-white/50"
-            }`}
+              }`}
             style={{ fontFamily: "Inter, sans-serif" }}
           >
             Login with X
