@@ -4,23 +4,16 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import axios from "axios";
-import Link from "next/link";
 import {
-  BarChart,
-  Heart,
-  MessageCircle,
-  Quote,
-  Repeat2,
-  Bookmark,
   MessagesSquare,
 } from "lucide-react";
 import { useAuth } from "@/components/providers";
 import Navbar from "@/components/navbar";
+import MindshareLeaderboard from "@/components/mindshare-leaderboard";
 import { ProjectCard } from "@/components/project-card";
 import LoginScreen from "@/components/login-screen";
 import {
   LeaderboardProject,
-  getLbProjectByTwitterUsername,
   getAllLbProjectsByTwitterUsername,
 } from "@/services/db/leaderboardProjects.db";
 import { UsersGrowthChart } from "@/components/users-growth";
@@ -32,12 +25,29 @@ import {
   Timeframe,
 } from "@/hooks/use-dashboard-metrics";
 
-interface LeaderboardRow {
+export interface UndonePointsBreakdown {
+  stickers: {
+    count: number;
+    metadata: { stickers: { id: string; name: string; file_url: string }[] };
+  };
+  helmet_stickers: {
+    count: number;
+    metadata: { stickers: { id: string; name: string; file_url: string }[] };
+  };
+  tasks: { completed: number };
+  daily_spins: { count: number };
+  watch_orders: { count: number };
+  rounds: { completed: number };
+}
+
+export interface LeaderboardRow {
   username: string;
   name: string;
   totalPoints: number;
   userId: string;
   stakingMultiplier?: number;
+  undonePoints?: number;
+  activity?: UndonePointsBreakdown;
 }
 
 export interface UndoneData {
@@ -331,103 +341,10 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Yappers Table - Takes 3 columns */}
             <div className="lg:col-span-3">
-              <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-                  <h3
-                    className="text-lg font-semibold text-white"
-                    style={{ fontFamily: "Orbitron, sans-serif" }}
-                  >
-                    All Singers
-                  </h3>
-                  <div className="flex items-center space-x-2">
-                    {/* <div className="text-2xl">👥</div> */}
-                    <div
-                      className="text-xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mr-4"
-                      style={{ fontFamily: "Orbitron, sans-serif" }}
-                    >
-                      {leaderboardData?.length || 0}
-                    </div>
-                    {/* <div
-                      className="text-xs text-white/60 font-medium"
-                      style={{ fontFamily: "Inter, sans-serif" }}
-                    >
-                      singers
-                    </div> */}
-                  </div>
-                </div>
-                <div className="overflow-x-auto max-h-[40rem] overflow-y-auto">
-                  <table className="min-w-full">
-                    <thead className="sticky top-0 z-10 bg-black/60 border-b border-white/10 shadow-sm">
-                      <tr
-                        className="text-left text-white/70 text-sm"
-                        style={{ fontFamily: "Inter, sans-serif" }}
-                      >
-                        <th className="px-6 py-3">Rank</th>
-                        <th className="px-6 py-3">Singer</th>
-                        <th className="px-6 py-3 text-center">
-                          Staking Multiplier
-                        </th>
-                        <th className="px-6 py-3 text-right">Total Points</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaderboardData?.map((u, idx) => (
-                        <tr
-                          key={u.userId}
-                          className={`${idx % 2 === 0 ? "bg-white/0" : "bg-white/[0.03]"
-                            } border-t border-white/10`}
-                        >
-                          <td className="px-6 py-3 align-middle">
-                            <span
-                              className="text-white font-medium"
-                              style={{ fontFamily: "Inter, sans-serif" }}
-                            >
-                              {idx + 1}
-                            </span>
-                          </td>
-                          <td className="px-6 py-3 align-middle">
-                            <div className="flex flex-col">
-                              <span
-                                className="text-white font-medium"
-                                style={{ fontFamily: "Inter, sans-serif" }}
-                              >
-                                {u.name || u.username}
-                              </span>
-                              <span
-                                className="text-white/60 text-sm"
-                                style={{ fontFamily: "Inter, sans-serif" }}
-                              >
-                                @{u.username}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-3 text-center align-middle">
-                            <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full font-semibold text-sm shadow-sm ${u.stakingMultiplier && u.stakingMultiplier > 1
-                                ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 text-white"
-                                : "bg-gradient-to-r from-gray-500/20 to-gray-600/20 border border-gray-500/30 text-white/70"
-                                }`}
-                              style={{ fontFamily: "Inter, sans-serif" }}
-                            >
-                              {u.stakingMultiplier
-                                ? u.stakingMultiplier.toFixed(2) + "x"
-                                : "1x"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-3 text-right align-middle">
-                            <span
-                              className="text-white font-medium"
-                              style={{ fontFamily: "Inter, sans-serif" }}
-                            >
-                              {u.totalPoints.toFixed(2)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <MindshareLeaderboard
+                leaderboardData={leaderboardData}
+                projectId={selectedProject?.projectId}
+              />
             </div>
 
             {/* Marketing Sidebar - Takes 1 column */}
