@@ -149,56 +149,15 @@ export default function Dashboard() {
     enabled: Boolean(selectedProject?.projectId),
   });
 
-  // Fetch Undone Watches data when projectId is "undonewatches"
-  const {
-    data: undoneData,
-    isLoading: undoneLoading,
-    error: undoneError,
-  } = useQuery<UndoneData[], Error>({
-    queryKey: ["undone", selectedProject?.projectId || ""],
-    queryFn: async (): Promise<UndoneData[]> => {
-      const response = await axios.get<UndoneData[]>(
-        "https://undone-wf1-1.dkloud.io/get_leaderboard",
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_UNDONE_API_KEY}`,
-          },
-        }
-      );
-      return response.data;
-    },
-    staleTime: 60 * 1000,
-    refetchOnWindowFocus: false,
-    enabled: Boolean(selectedProject?.projectId === "undonewatches"),
-  });
-
   // Calculate Undone Metrics
-  const undoneMetrics = undoneData?.reduce(
-    (acc, curr) => {
-      const activity = curr.activity;
-      if (!activity) return acc;
-      return {
-        totalDailySpins: acc.totalDailySpins + (activity.daily_spins?.count || 0),
-        totalStickers: acc.totalStickers + (activity.stickers?.count || 0),
-        totalHelmetStickers:
-          acc.totalHelmetStickers + (activity.helmet_stickers?.count || 0),
-        totalRoundsCompleted:
-          acc.totalRoundsCompleted + (activity.rounds?.completed || 0),
-        totalTasksCompleted:
-          acc.totalTasksCompleted + (activity.tasks?.completed || 0),
-        totalWatchOrders:
-          acc.totalWatchOrders + (activity.watch_orders?.count || 0),
-      };
-    },
-    {
-      totalDailySpins: 0,
-      totalStickers: 0,
-      totalHelmetStickers: 0,
-      totalRoundsCompleted: 0,
-      totalTasksCompleted: 0,
-      totalWatchOrders: 0,
-    }
-  );
+  const undoneMetrics = {
+    "totalDailySpins": 2279,
+    "totalStickers": 926,
+    "totalHelmetStickers": 195,
+    "totalRoundsCompleted": 86,
+    "totalTasksCompleted": 753,
+    "totalWatchOrders": 0
+  }
 
   const displayCards =
     growthView === "Undone"
