@@ -17,7 +17,7 @@ import {
 import { LeaderboardProject } from "@/services/db/leaderboardProjects.db";
 
 export type Timeframe = "24H" | "ALL";
-export type GrowthView = "Tweets" | "Spaces";
+export type GrowthView = "Tweets" | "Spaces" | "Undone";
 
 interface AnalyticsMetrics {
     projectId: string;

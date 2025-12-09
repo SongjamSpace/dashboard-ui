@@ -87,7 +87,7 @@ const MindshareLeaderboard: React.FC<MindshareLeaderboardProps> = ({ leaderboard
                             {projectId === "undonewatches" && (
                                 <th className="px-6 py-3 text-center">Undone Points</th>
                             )}
-                            <th className="px-6 py-3 text-right">Total Points</th>
+                            <th className="px-6 py-3 text-right">Sing Points</th>
                         </tr>
                     </thead>
                     <tbody>

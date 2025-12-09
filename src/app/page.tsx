@@ -5,7 +5,19 @@ import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import axios from "axios";
 import {
+  BarChart,
+  Heart,
+  MessageCircle,
+  Quote,
+  Repeat2,
+  Bookmark,
   MessagesSquare,
+  RotateCw,
+  Star,
+  HardHat,
+  Trophy,
+  CheckSquare,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/components/providers";
 import Navbar from "@/components/navbar";
@@ -160,6 +172,86 @@ export default function Dashboard() {
     enabled: Boolean(selectedProject?.projectId === "undonewatches"),
   });
 
+  // Calculate Undone Metrics
+  const undoneMetrics = undoneData?.reduce(
+    (acc, curr) => {
+      const activity = curr.activity;
+      if (!activity) return acc;
+      return {
+        totalDailySpins: acc.totalDailySpins + (activity.daily_spins?.count || 0),
+        totalStickers: acc.totalStickers + (activity.stickers?.count || 0),
+        totalHelmetStickers:
+          acc.totalHelmetStickers + (activity.helmet_stickers?.count || 0),
+        totalRoundsCompleted:
+          acc.totalRoundsCompleted + (activity.rounds?.completed || 0),
+        totalTasksCompleted:
+          acc.totalTasksCompleted + (activity.tasks?.completed || 0),
+        totalWatchOrders:
+          acc.totalWatchOrders + (activity.watch_orders?.count || 0),
+      };
+    },
+    {
+      totalDailySpins: 0,
+      totalStickers: 0,
+      totalHelmetStickers: 0,
+      totalRoundsCompleted: 0,
+      totalTasksCompleted: 0,
+      totalWatchOrders: 0,
+    }
+  );
+
+  const displayCards =
+    growthView === "Undone"
+      ? [
+        {
+          key: "totalDailySpins",
+          label: "Daily Spins",
+          value: undoneMetrics?.totalDailySpins || 0,
+          icon: RotateCw,
+        },
+        {
+          key: "totalStickers",
+          label: "Stickers",
+          value: undoneMetrics?.totalStickers || 0,
+          icon: Star,
+        },
+        {
+          key: "totalHelmetStickers",
+          label: "Helmet Stickers",
+          value: undoneMetrics?.totalHelmetStickers || 0,
+          icon: HardHat,
+        },
+        {
+          key: "totalRoundsCompleted",
+          label: "Rounds Completed",
+          value: undoneMetrics?.totalRoundsCompleted || 0,
+          icon: Trophy,
+        },
+        {
+          key: "totalTasksCompleted",
+          label: "Tasks Completed",
+          value: undoneMetrics?.totalTasksCompleted || 0,
+          icon: CheckSquare,
+        },
+        {
+          key: "totalWatchOrders",
+          label: "Watch Orders",
+          value: undoneMetrics?.totalWatchOrders || 0,
+          icon: Eye,
+        },
+      ]
+      : growthView === "Spaces"
+        ? [
+          ...cards,
+          {
+            key: "totalDiscussions",
+            label: "Discussions",
+            value: totalDiscussions,
+            icon: MessagesSquare,
+          },
+        ]
+        : cards;
+
   const handleTimeframeChange = (timeframe: Timeframe) => {
     setSelectedTimeframe(timeframe);
   };
@@ -264,7 +356,13 @@ export default function Dashboard() {
             <div className="flex justify-end mb-6">
               {selectedProject?.enableLurkySpacePoints && (
                 <div className="flex rounded-lg p-1 border bg-white/10 border-white/20">
-                  {(["Tweets", "Spaces"] as GrowthView[]).map((view) => (
+                  {([
+                    "Tweets",
+                    "Spaces",
+                    ...(selectedProject?.projectId === "undonewatches"
+                      ? ["Undone"]
+                      : []),
+                  ] as GrowthView[]).map((view) => (
                     <button
                       key={view}
                       onClick={() => setGrowthView(view)}
@@ -283,7 +381,7 @@ export default function Dashboard() {
 
             {/* Analytics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-              {(growthView === "Spaces" ? [...cards, { key: "totalDiscussions", label: "Discussions", value: totalDiscussions, icon: MessagesSquare }] : cards).map((metric) => {
+              {displayCards.map((metric) => {
                 const IconComponent = metric.icon;
                 return (
                   <motion.div
@@ -313,7 +411,7 @@ export default function Dashboard() {
               })}
             </div>
 
-            {selectedProject?.projectId && (
+            {selectedProject?.projectId && growthView !== "Undone" && (
               <UsersGrowthChart
                 projectId={
                   selectedProject?.projectId
